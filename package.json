@@ -11,10 +11,29 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@dsp-ts/math": "^0.1.0",
+    "@emotion/react": "^11.11.4",
+    "@emotion/styled": "^11.11.5",
+    "@fontsource/roboto": "^5.0.13",
+    "@juliendargelos/easings": "^0.0.6",
+    "@mui/icons-material": "^5.15.19",
+    "@mui/material": "^5.15.19",
+    "@pixi/react": "^7.1.2",
+    "jotai": "^2.8.2",
+    "jotai-effect": "^1.0.0",
+    "jotai-optics": "^0.4.0",
+    "merge-sx": "^2.0.2",
+    "optics-ts": "^2.4.1",
+    "pixi.js": "7.4.2",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-knob-headless": "^0.3.0",
+    "tone": "^15.0.4",
+    "use-debounce": "^10.0.1",
+    "use-resize-observer": "^9.1.0"
   },
   "devDependencies": {
+    "@types/d3-ease": "^3.0.2",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
     "@typescript-eslint/eslint-plugin": "^7.2.0",

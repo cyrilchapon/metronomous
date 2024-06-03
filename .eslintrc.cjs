@@ -25,5 +25,8 @@ module.exports = {
       'warn',
       { allowConstantExport: true },
     ],
+
+    // Personal customization
+    '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
   },
 }
