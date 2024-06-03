@@ -4,16 +4,19 @@ import { focusAtom } from 'jotai-optics'
 import * as Tone from 'tone'
 import { store } from './store'
 
+export const metronomeSignatures = [3, 4, 5, 6, 7] as const
+export type MetronomeSignature = typeof metronomeSignatures[number]
+
 export type MetronomeState = {
   bpm: number
-  signature: 3 | 4 | 5 | 6
+  signature: MetronomeSignature
   running: boolean
   progress: number
 }
 
 const initialMetronomeState: MetronomeState = {
   bpm: 90,
-  signature: 3,
+  signature: 4,
   running: false,
   progress: 0,
 }

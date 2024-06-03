@@ -15,7 +15,7 @@ import { globalStyles } from './style/global-styles'
 import { getTheme } from './style/theme'
 import { ShapeVisualization } from './components/shape-visualization'
 import { store } from './state/store'
-import { Debugger } from './components/debugger'
+// import { Debugger } from './components/debugger'
 
 const App = () => {
   return (
@@ -61,16 +61,16 @@ const _App = () => {
             xs="auto"
             justifySelf={'flex-end'}
             marginTop={'auto'}
-            marginBottom={2}
+            marginBottom={3}
             container
             justifyContent={'center'}
           >
             <Grid xs={'auto'} component={ControlBar} />
           </Grid>
 
-          <Grid xs="auto" justifySelf={'flex-end'}>
+          {/* <Grid xs="auto" justifySelf={'flex-end'}>
             <Debugger />
-          </Grid>
+          </Grid> */}
 
           <Grid xs={'auto'} justifySelf={'flex-end'}>
             <Navbar sx={{ top: 'auto', bottom: 0 }} />

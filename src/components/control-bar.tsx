@@ -2,11 +2,8 @@ import {
   AppBar,
   AppBarProps,
   Divider,
-  IconButton,
-  ToggleButton,
-  ToggleButtonGroup,
-  Toolbar,
-  Typography,
+  IconButton, Toolbar,
+  Typography
 } from '@mui/material'
 import { FunctionComponent } from 'react'
 import RemoveOutlinedIcon from '@mui/icons-material/RemoveOutlined'
@@ -16,8 +13,7 @@ import { mergeSx } from 'merge-sx'
 import { useAtom } from 'jotai'
 import {
   metronomeBpmAtom,
-  metronomeRunningAtom,
-  metronomeSignatureAtom,
+  metronomeRunningAtom
 } from '../state/metronome'
 import PauseIcon from '@mui/icons-material/Pause'
 
@@ -26,9 +22,6 @@ export type ControlBarProps = AppBarProps<'div'>
 export const ControlBar: FunctionComponent<ControlBarProps> = (props) => {
   const [metronomeRunning, setMetronomeRunning] = useAtom(metronomeRunningAtom)
   const [metronomeBpm, setMetronomeBpm] = useAtom(metronomeBpmAtom)
-  const [metronomeSignature, setMetronomeSignature] = useAtom(
-    metronomeSignatureAtom
-  )
 
   return (
     <AppBar
@@ -74,10 +67,6 @@ export const ControlBar: FunctionComponent<ControlBarProps> = (props) => {
           <AddOutlinedIcon fontSize="inherit" />
         </IconButton>
 
-        <Typography variant="h5" marginLeft={2}>
-          {metronomeBpm}
-        </Typography>
-
         <Divider
           orientation="vertical"
           variant={'middle'}
@@ -85,25 +74,9 @@ export const ControlBar: FunctionComponent<ControlBarProps> = (props) => {
           sx={{ marginX: 3 }}
         />
 
-        <ToggleButtonGroup
-          value={metronomeSignature}
-          exclusive
-          onChange={(_event, value: typeof metronomeSignature) => {
-            if (value == null) {
-              return
-            }
-            setMetronomeSignature(value)
-          }}
-          aria-label="text alignment"
-        >
-          <ToggleButton value={3} aria-label="left aligned">
-            3/4
-          </ToggleButton>
-
-          <ToggleButton value={4} aria-label="centered">
-            4/4
-          </ToggleButton>
-        </ToggleButtonGroup>
+        <Typography variant="h5">
+          {metronomeBpm}
+        </Typography>
       </Toolbar>
     </AppBar>
   )

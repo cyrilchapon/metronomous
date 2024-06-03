@@ -12,7 +12,6 @@ import {
 import { useSetAtom } from 'jotai'
 import { FunctionComponent, useCallback } from 'react'
 import { menuDrawerOpenAtom } from '../state/global-ui'
-import { ColorModeToggleButton } from './color-mode-toggle-button'
 import darkImgUrl from '../assets/metronomous-512-light-blue.png'
 import lightImgUrl from '../assets/metronomous-512-blue.png'
 
@@ -48,8 +47,6 @@ export const Navbar: FunctionComponent<NavbarProps> = (props) => {
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
           Metronomous
         </Typography>
-
-        <ColorModeToggleButton size="small" color="primary" />
 
         <IconButton
           color="inherit"

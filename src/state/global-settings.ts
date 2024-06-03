@@ -16,7 +16,7 @@ export type GlobalSettings = {
 }
 
 const initialGlobalSettings: GlobalSettings = {
-  colorMode: 'system',
+  colorMode: 'dark',
 }
 
 export const globalSettingsAtom = atom<GlobalSettings>(initialGlobalSettings)

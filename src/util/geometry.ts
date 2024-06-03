@@ -1,5 +1,3 @@
-import { UnreachableCaseError } from './unreachable-case-error'
-
 export type GeoPoint = [number, number]
 export type GeoSegment = [GeoPoint, GeoPoint]
 export type GeoPolygon = GeoPoint[]
@@ -24,18 +22,11 @@ export const largestPossibleSquare = (
   return square
 }
 
-export const boundShape = (square: GeoSquare, sides: 3 | 4 | 5 | 6) => {
-  switch (sides) {
-    case 3:
-      return boundTriangle(square)
-    case 4:
-      return boundSquare(square)
-    case 5:
-    case 6:
-      throw new Error(`Not implemented boundShape for ${sides} sides`)
-    default:
-      throw new UnreachableCaseError(sides)
+export const boundShape = (square: GeoSquare, sides: number) => {
+  if (sides <= 2) {
+    throw new TypeError(`Cannot calculate a polygon of ${sides} sides < 2.`)
   }
+  return boundPolygon(square, sides)
 }
 
 export const boundSquare = (square: GeoSquare): GeoSquare => {
@@ -55,6 +46,26 @@ export const boundSquare = (square: GeoSquare): GeoSquare => {
   ]
 }
 
+export const boundLosange = (square: GeoSquare): GeoSquare => {
+  const xs = square.map((p) => p[0])
+  const ys = square.map((p) => p[1])
+
+  const minX = Math.min(...xs)
+  const maxX = Math.max(...xs)
+  const minY = Math.min(...ys)
+  const maxY = Math.max(...ys)
+
+  const halfX = minX + (maxX - minX) / 2
+  const halfY = minY + (maxY - minY) / 2
+
+  return [
+    [halfX, minY],
+    [maxX, halfY],
+    [halfX, maxY],
+    [minX, halfY],
+  ]
+}
+
 export const boundTriangle = (square: GeoSquare): GeoTriangle => {
   const xs = square.map((p) => p[0])
   const ys = square.map((p) => p[1])
@@ -70,9 +81,9 @@ export const boundTriangle = (square: GeoSquare): GeoTriangle => {
   const triangleHeight = width * Math.cos(Math.PI / 6)
 
   const rawTriangle: GeoTriangle = [
-    [minX, maxY],
     [progressInRange([minX, maxX], 0.5), minY + (height - triangleHeight)],
     [maxX, maxY],
+    [minX, maxY],
   ]
 
   const topOffset = (height - triangleHeight) / 2
@@ -83,6 +94,44 @@ export const boundTriangle = (square: GeoSquare): GeoTriangle => {
   ]) as GeoTriangle
 
   return centeredTriangle
+}
+
+export const boundPolygon = (square: GeoSquare, sides: number): GeoPolygon => {
+  const xs = square.map((p) => p[0])
+  const ys = square.map((p) => p[1])
+
+  const minX = Math.min(...xs)
+  const maxX = Math.max(...xs)
+  const minY = Math.min(...ys)
+  const maxY = Math.max(...ys)
+
+  const xCenter = minX + (maxX - minX) / 2
+  const yCenter = minY + (maxY - minY) / 2
+
+  // Dynamic radius to keep consistent height across shapes
+  const baseDiameter = maxX - minX
+  const diameter = baseDiameter * 0.85 // Safe size ratio
+  const radiusFactor = (sides % 2 === 0) ? 2 : (1 + Math.cos(Math.PI / sides))
+  const radius = diameter / radiusFactor
+  const step = (2 * Math.PI) / sides
+
+  // Shift bottom after radius adjustment to keep top point aligned
+  const shift = radius - (diameter / 2)
+
+  const startAngle = -90 * (Math.PI / 180)
+
+  const polygon = new Array(sides)
+    .fill(null)
+    .reduce<GeoPolygon>((acc, _v, side) => {
+      const angleRad = (side * step) + startAngle
+      const nextPoint: GeoPoint = [
+        xCenter + radius * Math.cos(angleRad),
+        yCenter + shift + radius * Math.sin(angleRad),
+      ]
+      return [...acc, nextPoint]
+    }, [])
+
+  return polygon
 }
 
 export const progressInRange = (
