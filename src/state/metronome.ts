@@ -3,13 +3,19 @@ import { atomEffect } from 'jotai-effect'
 import { focusAtom } from 'jotai-optics'
 import * as Tone from 'tone'
 import { store } from './store'
+import { emptyArray } from '../util/array'
+import { UnreachableCaseError } from '../util/unreachable-case-error'
 
 export const metronomeSignatures = [3, 4, 5, 6, 7] as const
-export type MetronomeSignature = typeof metronomeSignatures[number]
+export type MetronomeSignature = (typeof metronomeSignatures)[number]
+
+export const metronomeSubdivisions = [1, 2, 3, 4, 6] as const
+export type MetronomeSubdivision = (typeof metronomeSubdivisions)[number]
 
 export type MetronomeState = {
   bpm: number
   signature: MetronomeSignature
+  subdivisions: MetronomeSubdivision
   running: boolean
   progress: number
 }
@@ -17,6 +23,7 @@ export type MetronomeState = {
 const initialMetronomeState: MetronomeState = {
   bpm: 90,
   signature: 4,
+  subdivisions: 1,
   running: false,
   progress: 0,
 }
@@ -34,6 +41,10 @@ export const metronomeProgressAtom = focusAtom(metronomeStateAtom, (optic) =>
 export const metronomeSignatureAtom = focusAtom(metronomeStateAtom, (optic) =>
   optic.prop('signature')
 )
+export const metronomeSubdivisionAtom = focusAtom(metronomeStateAtom, (optic) =>
+  optic.prop('subdivisions')
+)
+
 export type MetronomeTempo = {
   divisonIndex: number
   progressInDivision: number
@@ -56,31 +67,78 @@ export const metronomeTempoAtom: Atom<{
   return tempo
 })
 
-const synth = new Tone.PluckSynth()
+const synth = new Tone.MembraneSynth()
+
+// const synth = new Tone.PluckSynth()
+// console.log('attackNoise', synth.attackNoise)
+// console.log('dampening', synth.dampening)
+// console.log('release', synth.release)
+// console.log('resonance', synth.resonance)
+// console.log('volume', synth.volume)
 synth.toDestination()
 
 const transport = Tone.getTransport()
 transport.timeSignature = initialMetronomeState.signature
 
-const loop = new Tone.Sequence(
-  (time, note) => {
-    synth.triggerAttackRelease(note, 0.1, time)
-    // draw.schedule(() => {
-    //   store.set(metronomeProgress, loop.progress)
-    // }, time)
-  },
-  [
-    'D4',
-    ...new Array(initialMetronomeState.signature - 1)
-      .fill(null)
-      .map(() => 'C4'),
-  ],
-  '4n'
+type MetronomeNote = {
+  name: string
+  velocity: number
+}
+
+const getSequenceEvents = (
+  signature: MetronomeSignature,
+  subdivisions: MetronomeSubdivision
+) => {
+  return emptyArray(signature).flatMap<MetronomeNote>((_v1, beat) =>
+    emptyArray(subdivisions).map<MetronomeNote>((_v, subdivision) => ({
+      name: beat === 0 && subdivision === 0 ? 'A2' : 'C2',
+      velocity: subdivision === 0 ? 1 : 0.2,
+    }))
+  )
+}
+
+const getSequenceSubdivision = (subdivisions: MetronomeSubdivision) => {
+  switch (subdivisions) {
+    case 1:
+      return '4n'
+    case 2:
+      return '8n'
+    case 3:
+      return '8t'
+    case 4:
+      return '16n'
+    case 6:
+      return '16t'
+    default:
+      throw new UnreachableCaseError(subdivisions)
+  }
+}
+
+const playNote: Tone.ToneEventCallback<MetronomeNote> = (
+  time,
+  { name: note, velocity }
+) => {
+  synth.triggerAttackRelease(note, '64n', time, velocity)
+}
+
+const buildSequence = (
+  signature: MetronomeSignature,
+  subdivisions: MetronomeSubdivision
+) =>
+  new Tone.Sequence<MetronomeNote>(
+    playNote,
+    getSequenceEvents(signature, subdivisions),
+    getSequenceSubdivision(subdivisions)
+  )
+
+let sequence = buildSequence(
+  initialMetronomeState.signature,
+  initialMetronomeState.subdivisions
 )
 
 let tickerId: number | null = null
 const followProgressTick = () => {
-  store.set(metronomeProgressAtom, loop.progress)
+  store.set(metronomeProgressAtom, sequence.progress)
   tickerId = requestAnimationFrame(followProgressTick)
 }
 
@@ -93,35 +151,61 @@ export const updateMetronomeRunningEffect = atomEffect((get, set) => {
   const running = get(metronomeRunningAtom)
 
   if (running) {
-    if (loop.state !== 'started') {
-      loop.start(0)
-    } // else leave it running
-    if (transport.state !== 'started') {
-      transport.start()
-    } // else leave it running
-    if (tickerId == null) {
-      tickerId = requestAnimationFrame(followProgressTick)
-    } // else leave it running
+    startMetronome()
   } else {
-    if (transport.state !== 'stopped') {
-      transport.stop()
-    } // else leave it stopped
-    if (loop.state !== 'stopped') {
-      loop.stop()
-    } // else leave it stopped
-    if (tickerId != null) {
-      cancelAnimationFrame(tickerId)
-      tickerId = null
-    } // else leave it stopped
+    stopMetronome()
     set(metronomeProgressAtom, 0)
   }
 })
 
+const startMetronome = () => {
+  if (sequence.state !== 'started') {
+    sequence.start(0)
+  } // else leave it running
+  if (transport.state !== 'started') {
+    transport.start()
+  } // else leave it running
+  if (tickerId == null) {
+    tickerId = requestAnimationFrame(followProgressTick)
+  } // else leave it running
+}
+
+const stopMetronome = () => {
+  if (transport.state !== 'stopped') {
+    transport.stop()
+  } // else leave it stopped
+  if (sequence.state !== 'stopped') {
+    sequence.stop()
+  } // else leave it stopped
+  if (tickerId != null) {
+    cancelAnimationFrame(tickerId)
+    tickerId = null
+  } // else leave it stopped
+}
+
 export const updateMetronomeSignatureEffect = atomEffect((get) => {
   const signature = get(metronomeSignatureAtom)
+  const subdivisions = get.peek(metronomeSubdivisionAtom)
 
   transport.timeSignature = signature
-  loop.events = ['D4', ...new Array(signature - 1).fill(null).map(() => 'C4')]
+  sequence.events = getSequenceEvents(signature, subdivisions)
+})
+
+export const updateMetronomeSubdivisionEffect = atomEffect((get, set) => {
+  const subdivisions = get(metronomeSubdivisionAtom)
+  const signature = get.peek(metronomeSignatureAtom)
+  const running = get.peek(metronomeRunningAtom)
+
+  stopMetronome()
+  sequence.dispose()
+  set(metronomeProgressAtom, 0)
+
+  transport.timeSignature = signature
+  sequence = buildSequence(signature, subdivisions)
+
+  if (running) {
+    startMetronome()
+  }
 })
 
 // Tone.Transport.on('stop', function () {

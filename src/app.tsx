@@ -10,6 +10,7 @@ import {
   updateMetronomeBpmEffect,
   updateMetronomeRunningEffect,
   updateMetronomeSignatureEffect,
+  updateMetronomeSubdivisionEffect,
 } from './state/metronome'
 import { globalStyles } from './style/global-styles'
 import { getTheme } from './style/theme'
@@ -29,6 +30,7 @@ const _App = () => {
   useAtom(updateMetronomeRunningEffect)
   useAtom(updateMetronomeBpmEffect)
   useAtom(updateMetronomeSignatureEffect)
+  useAtom(updateMetronomeSubdivisionEffect)
 
   const paletteMode = usePaletteMode()
   const theme = useMemo(() => getTheme(paletteMode), [paletteMode])

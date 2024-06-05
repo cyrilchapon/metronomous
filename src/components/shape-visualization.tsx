@@ -21,6 +21,7 @@ import { useAtomValue } from 'jotai'
 import { metronomeSignatureAtom, metronomeTempoAtom } from '../state/metronome'
 import { displaySettingsAtom } from '../state/display-settings'
 import { massEasingIn } from '../util/mass-easing'
+import { Easings } from '@juliendargelos/easings'
 
 export type ShapeVisualizationProps = BoxProps<'div'>
 
@@ -116,10 +117,10 @@ const ShapeVisualizationInternal: FunctionComponent<
     [polygon, divisionIndex]
   )
 
-  const { cursorMass } = useAtomValue(displaySettingsAtom)
+  const { cursorMode, cursorMass } = useAtomValue(displaySettingsAtom)
   const progressInDivisionEasing = useMemo(
-    () => massEasingIn(cursorMass),
-    [cursorMass]
+    () => (cursorMode === 'mass' ? massEasingIn(cursorMass) : Easings.linear),
+    [cursorMode, cursorMass]
   )
   const easedProgressInDivision = useMemo(
     () => progressInDivisionEasing(progressInDivision),
