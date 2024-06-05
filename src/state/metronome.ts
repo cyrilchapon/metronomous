@@ -23,7 +23,7 @@ export type MetronomeState = {
 const initialMetronomeState: MetronomeState = {
   bpm: 90,
   signature: 4,
-  subdivisions: 1,
+  subdivisions: 2,
   running: false,
   progress: 0,
 }

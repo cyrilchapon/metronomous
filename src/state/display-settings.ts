@@ -10,7 +10,7 @@ export type DisplaySettings = {
 
 const initialDisplaySettings: DisplaySettings = {
   cursorMass: 5,
-  cursorMode: 'mass',
+  cursorMode: 'subdivisions',
 }
 
 export const displaySettingsAtom = atom<DisplaySettings>(initialDisplaySettings)
