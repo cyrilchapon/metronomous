@@ -68,13 +68,6 @@ export const metronomeTempoAtom: Atom<{
 })
 
 const synth = new Tone.MembraneSynth()
-
-// const synth = new Tone.PluckSynth()
-// console.log('attackNoise', synth.attackNoise)
-// console.log('dampening', synth.dampening)
-// console.log('release', synth.release)
-// console.log('resonance', synth.resonance)
-// console.log('volume', synth.volume)
 synth.toDestination()
 
 const transport = Tone.getTransport()

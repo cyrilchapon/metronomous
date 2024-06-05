@@ -16,7 +16,6 @@ import {
   boundShape,
   getPolygonSegment,
   getPolygonSegments,
-  pointInPolygon,
   pointInSegment,
 } from '../util/geometry'
 import { useAtomValue } from 'jotai'
