@@ -15,13 +15,20 @@ import {
   largestPossibleSquare as _largestPossibleSquare,
   boundShape,
   getPolygonSegment,
+  getPolygonSegments,
+  pointInPolygon,
   pointInSegment,
 } from '../util/geometry'
 import { useAtomValue } from 'jotai'
-import { metronomeSignatureAtom, metronomeTempoAtom } from '../state/metronome'
+import {
+  metronomeSignatureAtom,
+  metronomeSubdivisionAtom,
+  metronomeTempoAtom,
+} from '../state/metronome'
 import { displaySettingsAtom } from '../state/display-settings'
 import { massEasingIn } from '../util/mass-easing'
 import { Easings } from '@juliendargelos/easings'
+import { emptyArray } from '../util/array'
 
 export type ShapeVisualizationProps = BoxProps<'div'>
 
@@ -71,6 +78,7 @@ const ShapeVisualizationInternal: FunctionComponent<
 > = ({ width, height, padding }) => {
   const signature = useAtomValue(metronomeSignatureAtom)
   const { divisionIndex, progressInDivision } = useAtomValue(metronomeTempoAtom)
+  const subdivisions = useAtomValue(metronomeSubdivisionAtom)
 
   const largestPossibleSquare = useMemo(
     () => _largestPossibleSquare(width - 2, height - 2, padding),
@@ -81,6 +89,8 @@ const ShapeVisualizationInternal: FunctionComponent<
     () => boundShape(largestPossibleSquare, signature),
     [largestPossibleSquare, signature]
   )
+
+  const polygonSegments = useMemo(() => getPolygonSegments(polygon), [polygon])
 
   const drawShape = useCallback(
     (g: _Graphics) => {
@@ -103,6 +113,26 @@ const ShapeVisualizationInternal: FunctionComponent<
       g.endFill()
     },
     [polygon]
+  )
+
+  const drawSubdivisions = useCallback(
+    (g: _Graphics) => {
+      if (subdivisions <= 1) {
+        return
+      }
+
+      g.clear()
+      g.beginFill(0xff3300, 1)
+      polygonSegments.forEach((segment) => {
+        emptyArray(subdivisions - 1).forEach((_v, i) => {
+          const pointRatioInSegment = (1 / subdivisions) * (i + 1)
+          const [x, y] = pointInSegment(segment, pointRatioInSegment)
+          g.drawCircle(x, y, 5)
+        })
+      })
+      g.endFill()
+    },
+    [polygonSegments, subdivisions]
   )
 
   const drawCursor = useCallback((g: _Graphics) => {
@@ -139,6 +169,9 @@ const ShapeVisualizationInternal: FunctionComponent<
     >
       <Graphics draw={drawShape} />
       <Graphics draw={drawDivisions} />
+      {cursorMode === 'subdivisions' && subdivisions > 1 ? (
+        <Graphics draw={drawSubdivisions} />
+      ) : null}
       <Graphics x={cursorPoint[0]} y={cursorPoint[1]} draw={drawCursor} />
     </Stage>
   )

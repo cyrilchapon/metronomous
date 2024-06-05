@@ -111,19 +111,19 @@ export const boundPolygon = (square: GeoSquare, sides: number): GeoPolygon => {
   // Dynamic radius to keep consistent height across shapes
   const baseDiameter = maxX - minX
   const diameter = baseDiameter * 0.85 // Safe size ratio
-  const radiusFactor = (sides % 2 === 0) ? 2 : (1 + Math.cos(Math.PI / sides))
+  const radiusFactor = sides % 2 === 0 ? 2 : 1 + Math.cos(Math.PI / sides)
   const radius = diameter / radiusFactor
   const step = (2 * Math.PI) / sides
 
   // Shift bottom after radius adjustment to keep top point aligned
-  const shift = radius - (diameter / 2)
+  const shift = radius - diameter / 2
 
   const startAngle = -90 * (Math.PI / 180)
 
   const polygon = new Array(sides)
     .fill(null)
     .reduce<GeoPolygon>((acc, _v, side) => {
-      const angleRad = (side * step) + startAngle
+      const angleRad = side * step + startAngle
       const nextPoint: GeoPoint = [
         xCenter + radius * Math.cos(angleRad),
         yCenter + shift + radius * Math.sin(angleRad),
@@ -150,6 +150,12 @@ export const pointInSegment = (
 
   return [x, y]
 }
+
+export const getPolygonSegments = (polygon: GeoPolygon): GeoSegment[] =>
+  polygon.map((v, i, p) => [
+    v,
+    p[(i + 1) % p.length]
+  ])
 
 export const getPolygonSegment = (
   polygon: GeoPolygon,
