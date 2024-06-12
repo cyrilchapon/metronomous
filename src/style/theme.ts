@@ -1,5 +1,6 @@
 import { PaletteMode, alpha, createTheme } from '@mui/material'
 import { blue } from '@mui/material/colors'
+import { ColorSource } from 'pixi.js'
 
 declare module '@mui/material/styles' {
   // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
@@ -20,6 +21,23 @@ declare module '@mui/material/AppBar' {
   }
 }
 
+declare module '@mui/material/styles' {
+  // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+  interface Theme {
+    drawPalette: {
+      main: ColorSource
+      cursor: ColorSource
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
+  interface ThemeOptions {
+    drawPalette: {
+      main: ColorSource
+      cursor: ColorSource
+    }
+  }
+}
+
 const getTheme = (mode: PaletteMode) => {
   let theme = createTheme({
     palette: {
@@ -32,6 +50,16 @@ const getTheme = (mode: PaletteMode) => {
           }
         : {}),
     },
+    drawPalette:
+      mode === 'light'
+        ? {
+            main: 0x000000,
+            cursor: 0xff3300,
+          }
+        : {
+            main: 0xff3300,
+            cursor: 0xffffff,
+          },
     shape: {
       borderRadius: 2,
     },
@@ -41,9 +69,9 @@ const getTheme = (mode: PaletteMode) => {
     ...theme,
     palette: {
       ...theme.palette,
-      "semi-transparent": {
-        main: alpha(theme.palette.background.default, 0.5)
-      }
+      'semi-transparent': {
+        main: alpha(theme.palette.background.default, 0.5),
+      },
     },
   })
 

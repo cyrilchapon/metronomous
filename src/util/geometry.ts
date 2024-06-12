@@ -4,7 +4,7 @@ export type GeoPolygon = GeoPoint[]
 export type GeoSquare = [GeoPoint, GeoPoint, GeoPoint, GeoPoint]
 export type GeoTriangle = [GeoPoint, GeoPoint, GeoPoint]
 
-export const largestPossibleSquare = (
+export const getLargestPossibleSquare = (
   width: number,
   height: number,
   padding: number

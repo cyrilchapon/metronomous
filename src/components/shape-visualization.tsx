@@ -1,33 +1,24 @@
-import { Box, BoxProps } from '@mui/material'
-import {
-  FunctionComponent,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
-import useResizeObserver from 'use-resize-observer'
+import { Box, BoxProps, useTheme } from '@mui/material'
+import { FunctionComponent, useMemo, useRef, useState } from 'react'
 import { useThrottledCallback } from 'use-debounce'
+import useResizeObserver from 'use-resize-observer'
 
-import { Graphics as _Graphics } from 'pixi.js'
-import { Stage, Graphics } from '@pixi/react'
+import { Easings } from '@juliendargelos/easings'
+import { Stage } from '@pixi/react'
+import { useAtomValue } from 'jotai'
+import { displaySettingsAtom } from '../state/display-settings'
+import { metronomeProgressAtom, metronomeStateAtom } from '../state/metronome'
+import { emptyArray } from '../util/array'
 import {
-  largestPossibleSquare as _largestPossibleSquare,
   boundShape,
+  getLargestPossibleSquare,
   getPolygonSegment,
   getPolygonSegments,
   pointInSegment,
 } from '../util/geometry'
-import { useAtomValue } from 'jotai'
-import {
-  metronomeSignatureAtom,
-  metronomeSubdivisionAtom,
-  metronomeTempoAtom,
-} from '../state/metronome'
-import { displaySettingsAtom } from '../state/display-settings'
 import { massEasingIn } from '../util/mass-easing'
-import { Easings } from '@juliendargelos/easings'
-import { emptyArray } from '../util/array'
+import { MetronomeDot } from './graphics/metronome-dot'
+import { MetronomePolygon } from './graphics/metronome-shape'
 
 export type ShapeVisualizationProps = BoxProps<'div'>
 
@@ -57,7 +48,7 @@ export const ShapeVisualization: FunctionComponent<ShapeVisualizationProps> = (
   return (
     <Box ref={boxRef} display="flex" {...props}>
       {width != null && height != null ? (
-        <ShapeVisualizationInternal
+        <ShapeVisualizationCanvas
           width={width}
           height={height - 10}
           padding={100}
@@ -67,20 +58,24 @@ export const ShapeVisualization: FunctionComponent<ShapeVisualizationProps> = (
   )
 }
 
-type ShapeVisualizationInternalProps = {
+type ShapeVisualizationCanvasProps = {
   width: number
   height: number
   padding: number
 }
-const ShapeVisualizationInternal: FunctionComponent<
-  ShapeVisualizationInternalProps
+const ShapeVisualizationCanvas: FunctionComponent<
+  ShapeVisualizationCanvasProps
 > = ({ width, height, padding }) => {
-  const signature = useAtomValue(metronomeSignatureAtom)
-  const { divisionIndex, progressInDivision } = useAtomValue(metronomeTempoAtom)
-  const subdivisions = useAtomValue(metronomeSubdivisionAtom)
+  const { signature, subdivisions } = useAtomValue(metronomeStateAtom)
+  const { divisionIndex, progressInDivision } = useAtomValue(metronomeProgressAtom)
+  const { cursorMode, cursorMass } = useAtomValue(displaySettingsAtom)
+  const theme = useTheme()
+
+  const mainColor = theme.drawPalette.main
+  const cursorColor = theme.drawPalette.cursor
 
   const largestPossibleSquare = useMemo(
-    () => _largestPossibleSquare(width - 2, height - 2, padding),
+    () => getLargestPossibleSquare(width - 2, height - 2, padding),
     [width, height, padding]
   )
 
@@ -90,63 +85,24 @@ const ShapeVisualizationInternal: FunctionComponent<
   )
 
   const polygonSegments = useMemo(() => getPolygonSegments(polygon), [polygon])
-
-  const drawShape = useCallback(
-    (g: _Graphics) => {
-      g.clear()
-      g.beginFill(0xff3300, 0.1)
-      g.lineStyle(4, 0xff3300, 0.5)
-      g.drawPolygon([...polygon.flatMap((a) => a)])
-      g.endFill()
-    },
-    [polygon]
-  )
-
-  const drawDivisions = useCallback(
-    (g: _Graphics) => {
-      g.clear()
-      g.beginFill(0xff3300, 1)
-      polygon.forEach(([x, y]) => {
-        g.drawCircle(x, y, 10)
-      })
-      g.endFill()
-    },
-    [polygon]
-  )
-
-  const drawSubdivisions = useCallback(
-    (g: _Graphics) => {
-      if (subdivisions <= 1) {
-        return
-      }
-
-      g.clear()
-      g.beginFill(0xff3300, 1)
-      polygonSegments.forEach((segment) => {
-        emptyArray(subdivisions - 1).forEach((_v, i) => {
-          const pointRatioInSegment = (1 / subdivisions) * (i + 1)
-          const [x, y] = pointInSegment(segment, pointRatioInSegment)
-          g.drawCircle(x, y, 5)
-        })
-      })
-      g.endFill()
-    },
+  const subdivisionsPoints = useMemo(
+    () =>
+      subdivisions > 1
+        ? polygonSegments.flatMap((segment) =>
+            emptyArray(subdivisions - 1).map((_v, i) => {
+              const pointRatioInSegment = (1 / subdivisions) * (i + 1)
+              return pointInSegment(segment, pointRatioInSegment)
+            })
+          )
+        : [],
     [polygonSegments, subdivisions]
   )
-
-  const drawCursor = useCallback((g: _Graphics) => {
-    g.clear()
-    g.beginFill(0xffffff, 1)
-    g.drawCircle(0, 0, 15)
-    g.endFill()
-  }, [])
 
   const currentSegment = useMemo(
     () => getPolygonSegment(polygon, divisionIndex),
     [polygon, divisionIndex]
   )
 
-  const { cursorMode, cursorMass } = useAtomValue(displaySettingsAtom)
   const progressInDivisionEasing = useMemo(
     () => (cursorMode === 'mass' ? massEasingIn(cursorMass) : Easings.linear),
     [cursorMode, cursorMass]
@@ -166,12 +122,29 @@ const ShapeVisualizationInternal: FunctionComponent<
       height={height}
       options={{ backgroundAlpha: 0, antialias: true }}
     >
-      <Graphics draw={drawShape} />
-      <Graphics draw={drawDivisions} />
-      {cursorMode === 'subdivisions' && subdivisions > 1 ? (
-        <Graphics draw={drawSubdivisions} />
-      ) : null}
-      <Graphics x={cursorPoint[0]} y={cursorPoint[1]} draw={drawCursor} />
+      <MetronomePolygon polygon={polygon} color={mainColor} />
+
+      {polygon.map((point) => (
+        <MetronomeDot
+          key={`${point[0]}-${point[1]}`}
+          point={point}
+          color={mainColor}
+          radius={10}
+        />
+      ))}
+
+      {cursorMode === 'subdivisions' && subdivisions > 1
+        ? subdivisionsPoints.map((point) => (
+            <MetronomeDot
+              key={`${point[0]}-${point[1]}`}
+              point={point}
+              color={mainColor}
+              radius={5}
+            />
+          ))
+        : null}
+
+      <MetronomeDot point={cursorPoint} color={cursorColor} radius={15} />
     </Stage>
   )
 }

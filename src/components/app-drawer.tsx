@@ -16,14 +16,16 @@ import { menuDrawerOpenAtom } from '../state/global-ui'
 import { assertIsEasingMass, easingMasses } from '../util/mass-easing'
 import { ColorModeToggleButton } from './color-mode-toggle-button'
 import {
-  MetronomeSignature,
-  MetronomeSubdivision,
   metronomeSignatureAtom,
-  metronomeSignatures,
   metronomeSubdivisionAtom,
-  metronomeSubdivisions,
 } from '../state/metronome'
 import { SubdivisionIcon } from './subdivision-icon'
+import {
+  MetronomeSignature,
+  MetronomeSubdivision,
+  metronomeSignatures,
+  metronomeSubdivisions,
+} from '../util/metronome'
 
 const marks = easingMasses.map((m) => ({ value: m }))
 const minMass = Math.min(...easingMasses)
