@@ -1,6 +1,10 @@
 import { ColorSource, Graphics as _Graphics } from 'pixi.js'
 import { GeoPoint } from '../../util/geometry'
 import { PixiComponent } from '@pixi/react'
+import { FunctionComponent, useMemo } from 'react'
+import { useMotionSpeedPoint } from '../../hooks/use-motion-speed'
+import { MotionBlurredContainer } from './motion-blurred-container'
+import { MotionBlurFilter } from '@pixi/filter-motion-blur'
 
 export type MetronomeDotProps = {
   point: GeoPoint
@@ -42,3 +46,51 @@ export const MetronomeDot = PixiComponent<MetronomeDotProps, _Graphics>(
     },
   }
 )
+
+export type BlurredMetronomeDotProps = MetronomeDotProps & {
+  running: boolean
+  speedFactor: number
+  speedTrigger: number
+  motionBlur: Partial<
+    InstanceType<typeof MotionBlurFilter> & {
+      construct: ConstructorParameters<typeof MotionBlurFilter>
+    }
+  >
+}
+
+export const MotionBlurredMetronomeDot: FunctionComponent<
+  BlurredMetronomeDotProps
+> = (props) => {
+  const {
+    running,
+    speedFactor,
+    speedTrigger,
+    motionBlur,
+    ...metronomeDotProps
+  } = props
+
+  const { point } = metronomeDotProps
+
+  const motionSpeedPoint = useMotionSpeedPoint(running, point, speedFactor)
+  const moving = useMemo(
+    () =>
+      running &&
+      (Math.abs(motionSpeedPoint.x) >= speedTrigger ||
+        Math.abs(motionSpeedPoint.y) >= speedTrigger),
+    [running, motionSpeedPoint, speedTrigger]
+  )
+
+  return (
+    <>
+      {moving ? (
+        <MotionBlurredContainer
+          motionBlur={{ velocity: motionSpeedPoint, ...motionBlur }}
+        >
+          <MetronomeDot {...metronomeDotProps} />
+        </MotionBlurredContainer>
+      ) : null}
+
+      <MetronomeDot {...metronomeDotProps} />
+    </>
+  )
+}

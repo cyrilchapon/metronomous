@@ -17,7 +17,10 @@ import {
   pointInSegment,
 } from '../util/geometry'
 import { massEasingIn } from '../util/mass-easing'
-import { MetronomeDot } from './graphics/metronome-dot'
+import {
+  MetronomeDot,
+  MotionBlurredMetronomeDot,
+} from './graphics/metronome-dot'
 import { MetronomePolygon } from './graphics/metronome-shape'
 
 export type ShapeVisualizationProps = BoxProps<'div'>
@@ -66,8 +69,10 @@ type ShapeVisualizationCanvasProps = {
 const ShapeVisualizationCanvas: FunctionComponent<
   ShapeVisualizationCanvasProps
 > = ({ width, height, padding }) => {
-  const { signature, subdivisions } = useAtomValue(metronomeStateAtom)
-  const { divisionIndex, progressInDivision } = useAtomValue(metronomeProgressAtom)
+  const { running, signature, subdivisions } = useAtomValue(metronomeStateAtom)
+  const { divisionIndex, progressInDivision } = useAtomValue(
+    metronomeProgressAtom
+  )
   const { cursorMode, cursorMass } = useAtomValue(displaySettingsAtom)
   const theme = useTheme()
 
@@ -144,7 +149,18 @@ const ShapeVisualizationCanvas: FunctionComponent<
           ))
         : null}
 
-      <MetronomeDot point={cursorPoint} color={cursorColor} radius={15} />
+      <MotionBlurredMetronomeDot
+        point={cursorPoint}
+        color={cursorColor}
+        radius={15}
+        running={running}
+        speedFactor={3}
+        speedTrigger={2}
+        motionBlur={{
+          offset: -5,
+          kernelSize: 15,
+        }}
+      />
     </Stage>
   )
 }
