@@ -1,8 +1,11 @@
+import { emptyArray } from "./array"
+
 export type GeoPoint = [number, number]
 export type GeoSegment = [GeoPoint, GeoPoint]
 export type GeoPolygon = GeoPoint[]
 export type GeoSquare = [GeoPoint, GeoPoint, GeoPoint, GeoPoint]
 export type GeoTriangle = [GeoPoint, GeoPoint, GeoPoint]
+export type GeoCircle = { center: GeoPoint, radius: number }
 
 export const getLargestPossibleSquare = (
   width: number,
@@ -27,73 +30,6 @@ export const boundShape = (square: GeoSquare, sides: number) => {
     throw new TypeError(`Cannot calculate a polygon of ${sides} sides < 2.`)
   }
   return boundPolygon(square, sides)
-}
-
-export const boundSquare = (square: GeoSquare): GeoSquare => {
-  const xs = square.map((p) => p[0])
-  const ys = square.map((p) => p[1])
-
-  const minX = Math.min(...xs)
-  const maxX = Math.max(...xs)
-  const minY = Math.min(...ys)
-  const maxY = Math.max(...ys)
-
-  return [
-    [minX, maxY],
-    [minX, minY],
-    [maxX, minY],
-    [maxX, maxY],
-  ]
-}
-
-export const boundLosange = (square: GeoSquare): GeoSquare => {
-  const xs = square.map((p) => p[0])
-  const ys = square.map((p) => p[1])
-
-  const minX = Math.min(...xs)
-  const maxX = Math.max(...xs)
-  const minY = Math.min(...ys)
-  const maxY = Math.max(...ys)
-
-  const halfX = minX + (maxX - minX) / 2
-  const halfY = minY + (maxY - minY) / 2
-
-  return [
-    [halfX, minY],
-    [maxX, halfY],
-    [halfX, maxY],
-    [minX, halfY],
-  ]
-}
-
-export const boundTriangle = (square: GeoSquare): GeoTriangle => {
-  const xs = square.map((p) => p[0])
-  const ys = square.map((p) => p[1])
-
-  const minX = Math.min(...xs)
-  const maxX = Math.max(...xs)
-  const minY = Math.min(...ys)
-  const maxY = Math.max(...ys)
-
-  const width = maxX - minX
-  const height = maxY - minY
-
-  const triangleHeight = width * Math.cos(Math.PI / 6)
-
-  const rawTriangle: GeoTriangle = [
-    [progressInRange([minX, maxX], 0.5), minY + (height - triangleHeight)],
-    [maxX, maxY],
-    [minX, maxY],
-  ]
-
-  const topOffset = (height - triangleHeight) / 2
-
-  const centeredTriangle: GeoTriangle = rawTriangle.map<GeoPoint>((p) => [
-    p[0],
-    p[1] - topOffset,
-  ]) as GeoTriangle
-
-  return centeredTriangle
 }
 
 export const boundPolygon = (square: GeoSquare, sides: number): GeoPolygon => {
@@ -132,6 +68,24 @@ export const boundPolygon = (square: GeoSquare, sides: number): GeoPolygon => {
     }, [])
 
   return polygon
+}
+
+export const boundCircle = (square: GeoSquare): GeoCircle => {
+  const xs = square.map((p) => p[0])
+  const ys = square.map((p) => p[1])
+
+  const minX = Math.min(...xs)
+  const maxX = Math.max(...xs)
+  const minY = Math.min(...ys)
+  const maxY = Math.max(...ys)
+
+  const xCenter = minX + (maxX - minX) / 2
+  const yCenter = minY + (maxY - minY) / 2
+
+  return {
+    center: [xCenter, yCenter],
+    radius: (maxX - xCenter) * 0.85 // Safe size ratio
+  }
 }
 
 export const progressInRange = (
@@ -178,6 +132,60 @@ export const pointInPolygon = (
   const segment = getPolygonSegment(polygon, divisionIndex)
 
   const point = pointInSegment(segment, progressInDivision)
+
+  return point
+}
+
+const progressToRadian = (progress: number): number => Math.PI * 2 * progress
+const radianToProgress = (radian: number): number => radian / (Math.PI * 2)
+
+export const pointInCircle = (
+  circle: GeoCircle,
+  progress: number
+): GeoPoint => {
+  const radianProgress = progressToRadian(progress)
+
+  const point: GeoPoint = [
+    circle.radius * Math.cos(radianProgress - (Math.PI / 2)) + circle.center[0],
+    circle.radius * Math.sin(radianProgress - (Math.PI / 2)) + circle.center[1]
+  ]
+
+  return point
+}
+
+export const pointsInCircle = (
+  circle: GeoCircle,
+  subdivisions: number
+): GeoPoint[] => {
+  const subdivisionFactor = (1 / subdivisions)
+
+  const points = emptyArray(subdivisions).map((_v, i) => {
+    const progress = subdivisionFactor * i
+    return pointInCircle(circle, progress)
+  })
+
+  return points
+}
+
+export const pointInCircleDivision = (
+  circle: GeoCircle,
+  divisions: number,
+  divisionIndex: number,
+  _progressInDivision: number,
+  easing: (time: number) => number = (time) => time
+): GeoPoint => {
+  const progressInDivision = easing(_progressInDivision)
+
+  const safeStartDivisionIndex = divisionIndex % (divisions + 1)
+  const safeEndDivisionIndex = (divisionIndex + 1) % (divisions + 1)
+
+  const startAngle = progressToRadian((1 / divisions) * safeStartDivisionIndex)
+  const stopAngle = progressToRadian((1 / divisions) * safeEndDivisionIndex)
+
+  const progressAngle = startAngle + (stopAngle - startAngle) * progressInDivision
+  const progress = radianToProgress(progressAngle)
+
+  const point = pointInCircle(circle, progress)
 
   return point
 }

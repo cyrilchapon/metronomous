@@ -11,7 +11,7 @@ import {
 } from '@mui/material'
 import { useAtom } from 'jotai'
 import { FunctionComponent, useCallback } from 'react'
-import { CursorMode, displaySettingsAtom } from '../state/display-settings'
+import { CursorMode, ShapeMode, displaySettingsAtom } from '../state/display-settings'
 import { menuDrawerOpenAtom } from '../state/global-ui'
 import { assertIsEasingMass, easingMasses } from '../util/mass-easing'
 import { ColorModeToggleButton } from './color-mode-toggle-button'
@@ -109,8 +109,32 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
           </Box>
 
           <Box>
+            <InputLabel htmlFor="line-shape-input" sx={{ marginBottom: 1 }}>
+              Forme du contours
+            </InputLabel>
+
+            <ToggleButtonGroup
+              value={displaySettings.shapeMode}
+              exclusive
+              onChange={(_event, value: ShapeMode) => {
+                if (value == null) {
+                  return
+                }
+                setDisplaySettings((prevState) => ({
+                  ...prevState,
+                  shapeMode: value,
+                }))
+              }}
+              fullWidth
+            >
+              <ToggleButton value={'circle'}>Cercle</ToggleButton>
+              <ToggleButton value={'polygon'}>Polygone</ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+
+          <Box>
             <InputLabel htmlFor="cursor-mass-input" sx={{ marginBottom: 1 }}>
-              Mode d&apos;affichage
+              Mode de curseur
             </InputLabel>
 
             <ToggleButtonGroup
