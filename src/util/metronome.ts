@@ -1,6 +1,7 @@
 import * as Tone from 'tone'
 import { emptyArray } from './array'
 import { UnreachableCaseError } from './unreachable-case-error'
+import { TransportClass } from 'tone/build/esm/core/clock/Transport'
 
 export const metronomeSignatures = [3, 4, 5, 6, 7] as const
 export type MetronomeSignature = (typeof metronomeSignatures)[number]
@@ -18,10 +19,6 @@ export type MetronomeProgress = {
   progressInDivision: number
   divisionIndex: number
 }
-
-const INITIAL_SIGNATURE: MetronomeSignature = 4
-const INITIAL_SUBDIVISION: MetronomeSubdivision = 1
-const INITIAL_BPM = 90
 
 export class Metronome {
   static buildSequence =
@@ -69,7 +66,7 @@ export class Metronome {
   }
 
   readonly synth: Tone.Synth
-  readonly transport: ReturnType<typeof Tone.getTransport>
+  readonly transport: TransportClass
 
   private _sequence: Tone.Sequence<MetronomeNote>
   get sequence() {
@@ -88,11 +85,6 @@ export class Metronome {
   private _subdivisions: MetronomeSubdivision
   get subdivisions() {
     return this._subdivisions
-  }
-
-  private _bpm: number
-  get bpm() {
-    return this._bpm
   }
 
   get running() {
@@ -116,34 +108,25 @@ export class Metronome {
     return this._getProgress()
   }
 
-  private constructor(
+  constructor(
+    transport: TransportClass,
     initialTimeSignature: MetronomeSignature,
     initialSubdivisions: MetronomeSubdivision,
-    initialBpm: number
   ) {
     this._signature = initialTimeSignature
     this._subdivisions = initialSubdivisions
-    this._bpm = initialBpm
 
     this.synth = new Tone.MembraneSynth()
     this.synth.toDestination()
 
-    this.transport = Tone.getTransport()
+    this.transport = transport
     this.transport.timeSignature = this._signature
-
-    this.transport.bpm.value = this._bpm
 
     this._sequence = Metronome.buildSequence(this.synth)(
       this._signature,
       this._subdivisions
     )
   }
-
-  static instance = new this(
-    INITIAL_SIGNATURE,
-    INITIAL_SUBDIVISION,
-    INITIAL_BPM
-  )
 
   setSignature(signature: MetronomeSignature) {
     const oldSignature = this._signature
@@ -163,11 +146,6 @@ export class Metronome {
     if (oldSubdivisions !== this.subdivisions) {
       this._rebuildSequence()
     }
-  }
-
-  setBpm(bpm: number) {
-    this._bpm = bpm
-    this.transport.bpm.value = this._bpm
   }
 
   setOnProgress(onProgress: (progress: MetronomeProgress) => void) {

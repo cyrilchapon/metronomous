@@ -8,6 +8,7 @@ import {
   MetronomeSignature,
   MetronomeSubdivision,
 } from '../util/metronome'
+import * as Tone from 'tone'
 
 export type MetronomeState = {
   bpm: number
@@ -17,15 +18,25 @@ export type MetronomeState = {
   progress: MetronomeProgress
 }
 
-const metronome = Metronome.instance
-
 const initialMetronomeState: MetronomeState = {
-  bpm: metronome.bpm,
-  signature: metronome.signature,
-  subdivisions: metronome.subdivisions,
-  running: metronome.running,
-  progress: metronome.progress
+  bpm: 50,
+  signature: 4,
+  subdivisions: 2,
+  running: false,
+  progress: {
+    progress: 0,
+    divisionIndex: 0,
+    progressInDivision: 0,
+  },
 }
+
+const transport = Tone.getTransport()
+
+const metronome = new Metronome(
+  transport,
+  initialMetronomeState.signature,
+  initialMetronomeState.subdivisions
+)
 
 export const metronomeStateAtom = atom<MetronomeState>(initialMetronomeState)
 export const metronomeRunningAtom = focusAtom(metronomeStateAtom, (optic) =>
@@ -50,7 +61,7 @@ metronome.setOnProgress((metronomeProgress) => {
 
 export const updateMetronomeBpmEffect = atomEffect((get) => {
   const bpm = get(metronomeBpmAtom)
-  metronome.setBpm(bpm)
+  transport.bpm.value = bpm
 })
 
 export const updateMetronomeRunningEffect = atomEffect((get) => {
