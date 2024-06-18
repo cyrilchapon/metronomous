@@ -20,6 +20,7 @@
     "@mui/material": "^5.15.19",
     "@pixi/filter-fxaa": "^7.4.2",
     "@pixi/filter-motion-blur": "^5.1.1",
+    "@pixi/graphics-smooth": "^1.1.0",
     "@pixi/react": "^7.1.2",
     "jotai": "^2.8.2",
     "jotai-effect": "^1.0.0",

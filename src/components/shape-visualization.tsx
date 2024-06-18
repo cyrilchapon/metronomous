@@ -234,15 +234,33 @@ const CircleVisualizationCanvas: FunctionComponent<
   )
 
   const cursorPoint = useMemo(
-    () => pointInCircleDivision(circle, signature, divisionIndex, progressInDivision, progressInDivisionEasing),
-    [circle, signature, divisionIndex, progressInDivision, progressInDivisionEasing]
+    () =>
+      pointInCircleDivision(
+        circle,
+        signature,
+        divisionIndex,
+        progressInDivision,
+        progressInDivisionEasing
+      ),
+    [
+      circle,
+      signature,
+      divisionIndex,
+      progressInDivision,
+      progressInDivisionEasing,
+    ]
   )
 
   return (
     <Stage
       width={width}
       height={height}
-      options={{ backgroundAlpha: 0, antialias: true }}
+      options={{
+        backgroundAlpha: 0,
+        antialias: true,
+        autoDensity: true,
+        resolution: window.devicePixelRatio,
+      }}
     >
       <MetronomeCircle circle={circle} color={mainColor} />
 

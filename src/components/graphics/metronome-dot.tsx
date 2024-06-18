@@ -1,4 +1,5 @@
-import { ColorSource, Graphics as _Graphics } from 'pixi.js'
+import { ColorSource } from 'pixi.js'
+import { SmoothGraphics as _Graphics } from '@pixi/graphics-smooth'
 import { GeoPoint } from '../../util/geometry'
 import { PixiComponent } from '@pixi/react'
 import { FunctionComponent, useMemo } from 'react'
@@ -18,7 +19,7 @@ export const MetronomeDot = PixiComponent<MetronomeDotProps, _Graphics>(
     create: ({ point: [x, y], color, radius }) => {
       const g = new _Graphics()
 
-      g.beginFill(color, 1)
+      g.beginFill(color, 1, true)
       g.drawCircle(0, 0, radius)
       g.endFill()
 
@@ -36,7 +37,7 @@ export const MetronomeDot = PixiComponent<MetronomeDotProps, _Graphics>(
 
       if (needRedraw) {
         g.clear()
-        g.beginFill(color, 1)
+        g.beginFill(color, 1, true)
         g.drawCircle(0, 0, radius)
         g.endFill()
       }
