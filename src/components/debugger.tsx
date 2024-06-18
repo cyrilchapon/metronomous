@@ -30,7 +30,7 @@ export const Debugger: FunctionComponent<PaperProps> = (props) => {
 
         <Grid xs display="flex" justifyContent="center">
           <Chip
-            label={`${`${Math.round(progress * 100)}`.padStart(3, '0')} %`}
+            label={`${`${Math.round(progress.progress * 100)}`.padStart(3, '0')} %`}
             icon={<TimelapseIcon />}
           />
         </Grid>
