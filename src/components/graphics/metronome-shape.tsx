@@ -8,7 +8,7 @@ export type MetronomePolygonProps = {
   lineWidth: number
 }
 export const MetronomePolygon = PixiComponent<MetronomePolygonProps, _Graphics>(
-  'MetronomeShape',
+  'MetronomePolygon',
   {
     create: () => new _Graphics(),
     applyProps: (g, _, { polygon, color, lineWidth }) => {

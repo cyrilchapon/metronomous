@@ -14,7 +14,7 @@ export type MetronomeDotProps = {
 }
 
 export const MetronomeDot = PixiComponent<MetronomeDotProps, _Graphics>(
-  'MetronomeBeatDot',
+  'MetronomeDot',
   {
     create: ({ point: [x, y], color, radius }) => {
       const g = new _Graphics()
