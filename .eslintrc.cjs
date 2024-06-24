@@ -28,5 +28,6 @@ module.exports = {
 
     // Personal customization
     '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
+    'react/prop-types': 'off',
   },
 }
