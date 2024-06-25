@@ -85,6 +85,8 @@ const _ShapeVisualization: FunctionComponent<_ShapeVisualizationProps> = ({
   )
   const divisionDotRadius = useMemo(() => baseSquareSide / 50, [baseSquareSide])
   const cursorDotRadius = useMemo(() => baseSquareSide / 30, [baseSquareSide])
+  const flashDivisionRadiusMultiplicator = useMemo(() => baseSquareSide / 5, [baseSquareSide])
+  const flashSubdivisionRadiusMultiplicator = useMemo(() => baseSquareSide / 20, [baseSquareSide])
 
   const VisualizationCoreComponent = useMemo<ShapeVisualizationType>(
     () =>
@@ -103,6 +105,9 @@ const _ShapeVisualization: FunctionComponent<_ShapeVisualizationProps> = ({
       cursorDotRadius={cursorDotRadius}
       divisionDotRadius={divisionDotRadius}
       subdivisionDotRadius={subdivisionDotRadius}
+      divisionDotFlashRadius={flashDivisionRadiusMultiplicator}
+      subdivisionDotFlashRadius={flashSubdivisionRadiusMultiplicator}
+      flashOpacity={0.8}
       lineWidth={lineWidth}
       mainColor={mainColor}
       cursorColor={cursorColor}

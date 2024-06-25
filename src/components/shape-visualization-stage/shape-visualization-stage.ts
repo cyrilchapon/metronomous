@@ -12,6 +12,9 @@ export type ShapeVisualizationShapeProps = {
   subdivisionDotRadius: number
   divisionDotRadius: number
   cursorDotRadius: number
+  divisionDotFlashRadius: number
+  subdivisionDotFlashRadius: number
+  flashOpacity: number
   mainColor: ColorSource
   cursorColor: ColorSource
 }

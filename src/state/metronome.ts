@@ -55,6 +55,37 @@ export const metronomeSubdivisionAtom = focusAtom(metronomeStateAtom, (optic) =>
   optic.prop('subdivisions')
 )
 
+export type MetronomeSubdivisionProgressState = {
+  totalSubdivisions: number
+  subdivisionIndexInDivision: number
+  subdivisionIndex: number
+  progressInSubdivision: number
+}
+export const metronomeSubdivisionProgressAtom =
+  atom<MetronomeSubdivisionProgressState>((get) => {
+    const {
+      signature,
+      subdivisions,
+      progress: { divisionIndex, progressInDivision },
+    } = get(metronomeStateAtom)
+
+    const totalSubdivisions = subdivisions * signature
+    const subdivisionIndexInDivision = Math.floor(
+      progressInDivision * subdivisions
+    )
+    const subdivisionIndex =
+      divisionIndex * subdivisions + subdivisionIndexInDivision
+
+    const progressInSubdivision = (progressInDivision * subdivisions) - subdivisionIndexInDivision
+
+    return {
+      totalSubdivisions,
+      subdivisionIndexInDivision,
+      subdivisionIndex,
+      progressInSubdivision
+    }
+  })
+
 metronome.setOnProgress((metronomeProgress) => {
   store.set(metronomeProgressAtom, metronomeProgress)
 })

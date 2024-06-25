@@ -1,10 +1,11 @@
-import { useMemo } from 'react'
+import { Fragment, useMemo } from 'react'
 
 import { useAtomValue } from 'jotai'
 import { displaySettingsAtom } from '../../state/display-settings'
 import {
   metronomeProgressAtom,
   metronomeStateAtom,
+  metronomeSubdivisionProgressAtom,
 } from '../../state/metronome'
 import { emptyArray } from '../../util/array'
 import {
@@ -15,11 +16,13 @@ import {
 } from '../../util/geometry'
 import {
   MetronomeDot,
+  MetronomePulsatingDot,
   MotionBlurredMetronomeDot,
 } from '../graphics/metronome-dot'
 import { MetronomePolygon } from '../graphics/metronome-shape'
 import { ShapeVisualizationType } from './shape-visualization-stage'
 import { Stage } from '@pixi/react'
+import * as easings from '@juliendargelos/easings'
 
 export const PolygonVisualizationCore: ShapeVisualizationType = ({
   containerSquare,
@@ -30,6 +33,9 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
   subdivisionDotRadius,
   divisionDotRadius,
   cursorDotRadius,
+  divisionDotFlashRadius,
+  subdivisionDotFlashRadius,
+  flashOpacity,
   mainColor,
   cursorColor,
 }) => {
@@ -37,7 +43,10 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
   const { divisionIndex, progressInDivision } = useAtomValue(
     metronomeProgressAtom
   )
-  const { cursorMode } = useAtomValue(displaySettingsAtom)
+  const { cursorMode, flashMode } = useAtomValue(displaySettingsAtom)
+  const { subdivisionIndex, progressInSubdivision } = useAtomValue(
+    metronomeSubdivisionProgressAtom
+  )
 
   const polygon = useMemo(
     () => boundShape(containerSquare, signature),
@@ -48,7 +57,7 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
   const subdivisionsPoints = useMemo(
     () =>
       subdivisions > 1
-        ? polygonSegments.flatMap((segment) =>
+        ? polygonSegments.map((segment) =>
             emptyArray(subdivisions - 1).map((_v, i) => {
               const pointRatioInSegment = (1 / subdivisions) * (i + 1)
               return pointInSegment(segment, pointRatioInSegment)
@@ -90,30 +99,72 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
         lineWidth={lineWidth}
       />
 
-      {polygon.map((point) => (
-        <MetronomeDot
-          key={`${point[0]}-${point[1]}`}
-          point={point}
-          color={mainColor}
-          radius={divisionDotRadius}
-        />
+      {polygon.map((point, pointIndex) => (
+        <Fragment key={`${point[0]}-${point[1]}`}>
+          {flashMode === 'divisions' ? (
+            <MetronomePulsatingDot
+              point={point}
+              color={cursorColor}
+              minRadius={divisionDotRadius}
+              maxRadius={divisionDotFlashRadius}
+              radiusEasing={easings.quintic.out}
+              minOpacity={0}
+              maxOpacity={flashOpacity}
+              opacityEasing={easings.quintic.in}
+              progress={progressInDivision}
+              active={divisionIndex === pointIndex}
+            />
+          ) : null}
+
+          <MetronomeDot
+            point={point}
+            color={mainColor}
+            radius={divisionDotRadius}
+            opacity={1}
+          />
+        </Fragment>
       ))}
 
       {cursorMode === 'subdivisions' && subdivisions > 1
-        ? subdivisionsPoints.map((point) => (
-            <MetronomeDot
-              key={`${point[0]}-${point[1]}`}
-              point={point}
-              color={mainColor}
-              radius={subdivisionDotRadius}
-            />
-          ))
+        ? subdivisionsPoints.map((divisionPoints, _divisionIndex) =>
+            divisionPoints.map((point, pointIndex) => {
+              const _subdivisionIndex =
+                _divisionIndex * subdivisions + pointIndex + 1
+
+              return (
+                <Fragment key={`${point[0]}-${point[1]}`}>
+                  {flashMode === 'divisions' ? (
+                    <MetronomePulsatingDot
+                      point={point}
+                      color={cursorColor}
+                      minRadius={subdivisionDotRadius}
+                      maxRadius={subdivisionDotFlashRadius}
+                      radiusEasing={easings.quintic.out}
+                      minOpacity={0}
+                      maxOpacity={flashOpacity}
+                      opacityEasing={easings.quintic.in}
+                      progress={progressInSubdivision}
+                      active={subdivisionIndex === _subdivisionIndex}
+                    />
+                  ) : null}
+
+                  <MetronomeDot
+                    point={point}
+                    color={mainColor}
+                    radius={subdivisionDotRadius}
+                    opacity={1}
+                  />
+                </Fragment>
+              )
+            })
+          )
         : null}
 
       <MotionBlurredMetronomeDot
         point={cursorPoint}
         color={cursorColor}
         radius={cursorDotRadius}
+        opacity={1}
         running={running}
         speedFactor={3}
         speedTrigger={3}

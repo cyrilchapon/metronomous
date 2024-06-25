@@ -6,20 +6,22 @@ import { FunctionComponent, useMemo } from 'react'
 import { useMotionSpeedPoint } from '../../hooks/use-motion-speed'
 import { MotionBlurredContainer } from './motion-blurred-container'
 import { MotionBlurFilter } from '@pixi/filter-motion-blur'
+import { EasingFunction } from '@juliendargelos/easings'
 
 export type MetronomeDotProps = {
   point: GeoPoint
   color: ColorSource
   radius: number
+  opacity: number
 }
 
 export const MetronomeDot = PixiComponent<MetronomeDotProps, _Graphics>(
   'MetronomeDot',
   {
-    create: ({ point: [x, y], color, radius }) => {
+    create: ({ point: [x, y], color, radius, opacity }) => {
       const g = new _Graphics()
 
-      g.beginFill(color, 1, true)
+      g.beginFill(color, opacity, true)
       g.drawCircle(0, 0, radius)
       g.endFill()
 
@@ -30,14 +32,19 @@ export const MetronomeDot = PixiComponent<MetronomeDotProps, _Graphics>(
     },
     applyProps: (
       g,
-      { color: oldColor, radius: oldRadius }: MetronomeDotProps,
-      { point: [x, y], color, radius }
+      {
+        color: oldColor,
+        radius: oldRadius,
+        opacity: oldOpacity,
+      }: MetronomeDotProps,
+      { point: [x, y], color, radius, opacity }
     ) => {
-      const needRedraw = color !== oldColor || radius !== oldRadius
+      const needRedraw =
+        color !== oldColor || radius !== oldRadius || opacity !== oldOpacity
 
       if (needRedraw) {
         g.clear()
-        g.beginFill(color, 1, true)
+        g.beginFill(color, opacity, true)
         g.drawCircle(0, 0, radius)
         g.endFill()
       }
@@ -47,6 +54,106 @@ export const MetronomeDot = PixiComponent<MetronomeDotProps, _Graphics>(
     },
   }
 )
+
+export type MetronomePulsatingDotProps = {
+  point: GeoPoint
+  color: ColorSource
+  minRadius: number
+  maxRadius: number
+  radiusEasing: EasingFunction
+  minOpacity: number
+  maxOpacity: number
+  opacityEasing: EasingFunction
+  progress: number
+  active: boolean
+}
+
+export const MetronomePulsatingDot = PixiComponent<
+  MetronomePulsatingDotProps,
+  _Graphics
+>('MetronomePulsatingDot', {
+  create: ({
+    point: [x, y],
+    color,
+    minRadius,
+    maxRadius,
+    radiusEasing,
+    minOpacity,
+    maxOpacity,
+    opacityEasing,
+    progress,
+    active,
+  }) => {
+    const g = new _Graphics()
+
+    if (active) {
+      const radius = minRadius + radiusEasing(progress) * (maxRadius - minRadius)
+      const opacity = (minOpacity + opacityEasing(1 - progress) * (maxOpacity - minOpacity))
+
+      g.beginFill(color, opacity, true)
+      g.drawCircle(0, 0, radius)
+      g.endFill()
+    }
+
+    g.position.x = x
+    g.position.y = y
+
+    return g
+  },
+  applyProps: (
+    g,
+    {
+      color: oldColor,
+      minRadius: oldMinRadius,
+      maxRadius: oldMaxRadius,
+      minOpacity: oldMinOpacity,
+      maxOpacity: oldMaxOpacity,
+      progress: oldProgress,
+      active: oldActive,
+      radiusEasing: oldRadiusEasing,
+      opacityEasing: oldOpacityEasing,
+    }: MetronomePulsatingDotProps,
+    {
+      point: [x, y],
+      color,
+      minRadius,
+      maxRadius,
+      minOpacity,
+      maxOpacity,
+      progress,
+      active,
+      radiusEasing,
+      opacityEasing,
+    }
+  ) => {
+    const needRedraw =
+      color !== oldColor ||
+      minRadius !== oldMinRadius ||
+      maxRadius !== oldMaxRadius ||
+      minOpacity !== oldMinOpacity ||
+      maxOpacity !== oldMaxOpacity ||
+      progress !== oldProgress ||
+      active !== oldActive ||
+      radiusEasing !== oldRadiusEasing ||
+      opacityEasing !== oldOpacityEasing
+
+    if (needRedraw) {
+      g.clear()
+
+      if (active) {
+        const radius = minRadius + radiusEasing(progress) * (maxRadius - minRadius)
+        const opacity = (minOpacity + opacityEasing(1 - progress) * (maxOpacity - minOpacity))
+  
+        g.beginFill(color, opacity, true)
+        g.drawCircle(0, 0, radius)
+        g.endFill()
+      }
+    }
+
+    g.position.x = x
+    g.position.y = y
+  },
+})
 
 export type BlurredMetronomeDotProps = MetronomeDotProps & {
   running: boolean

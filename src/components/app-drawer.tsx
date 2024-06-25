@@ -14,6 +14,7 @@ import { useAtom } from 'jotai'
 import { FunctionComponent, useCallback } from 'react'
 import {
   CursorMode,
+  FlashMode,
   ShapeMode,
   displaySettingsAtom,
 } from '../state/display-settings'
@@ -74,7 +75,9 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
       >
         <Stack flex={1} spacing={4}>
           <Stack spacing={2}>
-            <Typography variant="h5" lineHeight={1}>Métronome</Typography>
+            <Typography variant="h5" lineHeight={1}>
+              Métronome
+            </Typography>
             <Box>
               <InputLabel sx={{ marginBottom: 2 }}>Signature</InputLabel>
 
@@ -159,7 +162,9 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
           <Divider />
 
           <Stack spacing={2}>
-            <Typography variant="h5" lineHeight={1}>Curseur</Typography>
+            <Typography variant="h5" lineHeight={1}>
+              Curseur
+            </Typography>
 
             <Box>
               <InputLabel htmlFor="cursor-mass-input" sx={{ marginBottom: 1 }}>
@@ -216,6 +221,33 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
                 min={minMass}
                 max={maxMass}
               />
+            </Box>
+
+            <Box>
+              <InputLabel htmlFor="cursor-flash-input" sx={{ marginBottom: 1 }}>
+                Flash
+              </InputLabel>
+
+              <ToggleButtonGroup
+                value={displaySettings.flashMode}
+                exclusive
+                onChange={(_event, value: FlashMode) => {
+                  setDisplaySettings((prevState) => ({
+                    ...prevState,
+                    flashMode: value,
+                  }))
+                }}
+                fullWidth
+              >
+                <ToggleButton value={'divisions'}>
+                  {/* <AnimationOutlinedIcon sx={{ mr: 1 }} /> */}
+                  On
+                </ToggleButton>
+                <ToggleButton value={'none'}>
+                  {/* <CommitOutlinedIcon sx={{ mr: 1 }} /> */}
+                  Off
+                </ToggleButton>
+              </ToggleButtonGroup>
             </Box>
           </Stack>
 
