@@ -99,8 +99,6 @@ const _ShapeVisualization: FunctionComponent<_ShapeVisualizationProps> = ({
   return (
     <VisualizationCoreComponent
       containerSquare={largestPossibleSquare}
-      width={width}
-      height={height}
       cursorEasing={cursorEasing}
       cursorDotRadius={cursorDotRadius}
       divisionDotRadius={divisionDotRadius}
@@ -111,6 +109,16 @@ const _ShapeVisualization: FunctionComponent<_ShapeVisualizationProps> = ({
       lineWidth={lineWidth}
       mainColor={mainColor}
       cursorColor={cursorColor}
+      // Native Stage props
+      width={width}
+      height={height}
+      options={{
+        backgroundAlpha: 0,
+        antialias: true,
+        autoDensity: true,
+        resolution: window.devicePixelRatio,
+      }}
+      raf={false}
     />
   )
 }

@@ -2,6 +2,7 @@ import * as Tone from 'tone'
 import { emptyArray } from './array'
 import { UnreachableCaseError } from './unreachable-case-error'
 import { TransportClass } from 'tone/build/esm/core/clock/Transport'
+import { createNanoEvents, Emitter } from 'nanoevents'
 
 export const metronomeSignatures = [3, 4, 5, 6, 7] as const
 export type MetronomeSignature = (typeof metronomeSignatures)[number]
@@ -9,36 +10,61 @@ export type MetronomeSignature = (typeof metronomeSignatures)[number]
 export const metronomeSubdivisions = [1, 2, 3, 4, 6] as const
 export type MetronomeSubdivision = (typeof metronomeSubdivisions)[number]
 
+export type MetronomeTick = {
+  divisionIndex: number
+  subdivisionIndex: number
+}
+
 export type MetronomeNote = {
   name: string
   velocity: number
+}
+
+export type MetronomeSequenceItem = {
+  note: MetronomeNote
+  tick: MetronomeTick
 }
 
 export type MetronomeProgress = {
   progress: number
   progressInDivision: number
   divisionIndex: number
+  progressInSubdivision: number
+  subdivisionIndex: number
+  subdivisionIndexInDivision: number
+}
+
+export type MetronomeEvents = {
+  progress: (progress: MetronomeProgress) => void
+  tick: (divisionIndex: number, progress: MetronomeProgress) => void
+  subdivisionTick: (
+    subdivisionIndex: number,
+    progress: MetronomeProgress
+  ) => void
+  subdivisionOnlyTick: (
+    subdivisionIndex: number,
+    progress: MetronomeProgress
+  ) => void
 }
 
 export class Metronome {
-  static buildSequence =
-    (synth: Tone.Synth) =>
-    (signature: MetronomeSignature, subdivisions: MetronomeSubdivision) =>
-      new Tone.Sequence<MetronomeNote>(
-        Metronome.playNote(synth),
-        Metronome.getSequenceEvents(signature, subdivisions),
-        Metronome.getSequenceSubdivision(subdivisions)
-      )
-
   static getSequenceEvents = (
     signature: MetronomeSignature,
     subdivisions: MetronomeSubdivision
   ) => {
-    return emptyArray(signature).flatMap<MetronomeNote>((_v1, beat) =>
-      emptyArray(subdivisions).map<MetronomeNote>((_v, subdivision) => ({
-        name: beat === 0 && subdivision === 0 ? 'A2' : 'C2',
-        velocity: subdivision === 0 ? 0.8 : 0.2,
-      }))
+    return emptyArray(signature).flatMap<MetronomeSequenceItem>((_v1, beat) =>
+      emptyArray(subdivisions).map<MetronomeSequenceItem>(
+        (_v, subdivision) => ({
+          note: {
+            name: beat === 0 && subdivision === 0 ? 'A2' : 'C2',
+            velocity: subdivision === 0 ? 0.8 : 0.2,
+          },
+          tick: {
+            divisionIndex: beat,
+            subdivisionIndex: subdivision,
+          },
+        })
+      )
     )
   }
 
@@ -68,12 +94,15 @@ export class Metronome {
   readonly synth: Tone.Synth
   readonly transport: TransportClass
 
-  private _sequence: Tone.Sequence<MetronomeNote>
+  private _emitter: Emitter<MetronomeEvents>
+  on<E extends keyof MetronomeEvents>(event: E, callback: MetronomeEvents[E]) {
+    return this._emitter.on(event, callback)
+  }
+
+  private _sequence: Tone.Sequence<MetronomeSequenceItem>
   get sequence() {
     return this._sequence
   }
-
-  private onProgress: ((progress: MetronomeProgress) => void) | null = null
 
   private metronomeTickerId: number | null = null
 
@@ -86,6 +115,9 @@ export class Metronome {
   get subdivisions() {
     return this._subdivisions
   }
+  get totalSubdivisions() {
+    return this._subdivisions * this._signature
+  }
 
   get running() {
     return this.transport.state === 'started' && this.metronomeTickerId != null
@@ -97,10 +129,22 @@ export class Metronome {
     const progressInDivision =
       (progress - (1 / this._signature) * divisionIndex) * this._signature
 
+    const subdivisionIndexInDivision = Math.floor(
+      progressInDivision * this._subdivisions
+    )
+    const subdivisionIndex =
+      divisionIndex * this._subdivisions + subdivisionIndexInDivision
+
+    const progressInSubdivision =
+      progressInDivision * this._subdivisions - subdivisionIndexInDivision
+
     return {
       progress,
       progressInDivision,
       divisionIndex,
+      progressInSubdivision,
+      subdivisionIndex,
+      subdivisionIndexInDivision,
     }
   }
 
@@ -111,8 +155,10 @@ export class Metronome {
   constructor(
     transport: TransportClass,
     initialTimeSignature: MetronomeSignature,
-    initialSubdivisions: MetronomeSubdivision,
+    initialSubdivisions: MetronomeSubdivision
   ) {
+    this._emitter = createNanoEvents<MetronomeEvents>()
+
     this._signature = initialTimeSignature
     this._subdivisions = initialSubdivisions
 
@@ -122,10 +168,15 @@ export class Metronome {
     this.transport = transport
     this.transport.timeSignature = this._signature
 
-    this._sequence = Metronome.buildSequence(this.synth)(
-      this._signature,
-      this._subdivisions
+    this._sequence = new Tone.Sequence<MetronomeSequenceItem>(
+      (time, { tick, note }) => {
+        Metronome.playNote(this.synth)(time, note)
+        Tone.getDraw().schedule(this.handleTick.bind(this, tick), time)
+      },
+      Metronome.getSequenceEvents(this._signature, this._subdivisions),
+      Metronome.getSequenceSubdivision(this._subdivisions)
     )
+    this._sequence.start(0)
   }
 
   setSignature(signature: MetronomeSignature) {
@@ -148,13 +199,8 @@ export class Metronome {
     }
   }
 
-  setOnProgress(onProgress: (progress: MetronomeProgress) => void) {
-    this.onProgress = onProgress
-  }
-
   start() {
     if (this.transport.state !== 'started') {
-      this._sequence.start(0)
       this.transport.start()
     } // else leave it running
 
@@ -166,7 +212,6 @@ export class Metronome {
   stop() {
     if (this.transport.state !== 'stopped') {
       this.sendProgress(0)
-      this._sequence.stop(0)
       this.transport.stop()
     } // else leave it running
 
@@ -182,25 +227,37 @@ export class Metronome {
   }
 
   private sendProgress(forceProgress?: number) {
-    if (this.onProgress != null) {
-      try {
-        const progress = this._getProgress(forceProgress)
-        this.onProgress(progress)
-      } catch (err) {
-        console.error('onTick error', err)
-      }
+    const progress = this._getProgress(forceProgress)
+    this._emitter.emit('progress', progress)
+  }
+
+  private handleTick({ divisionIndex, subdivisionIndex }: MetronomeTick) {
+    if (subdivisionIndex === 0) {
+      this._emitter.emit('tick', divisionIndex, this._getProgress())
+    } else {
+      this._emitter.emit(
+        'subdivisionOnlyTick',
+        subdivisionIndex,
+        this._getProgress()
+      )
     }
+
+    this._emitter.emit('subdivisionTick', subdivisionIndex, this._getProgress())
   }
 
   private _rebuildSequence() {
     this._sequence.dispose()
-    this._sequence = Metronome.buildSequence(this.synth)(
-      this._signature,
-      this._subdivisions
+    this._sequence = new Tone.Sequence<MetronomeSequenceItem>(
+      (time, { tick, note }) => {
+        Metronome.playNote(this.synth)(time, note)
+        Tone.getDraw().schedule(this.handleTick.bind(this, tick), time)
+      },
+      Metronome.getSequenceEvents(this._signature, this._subdivisions),
+      Metronome.getSequenceSubdivision(this._subdivisions)
     )
 
-    if (this.transport.state === 'started') {
-      this._sequence.start(this.transport.progress)
-    }
+    this._sequence.start(
+      this.transport.state === 'started' ? this.transport.progress : 0
+    )
   }
 }

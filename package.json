@@ -26,6 +26,7 @@
     "jotai-effect": "^1.0.0",
     "jotai-optics": "^0.4.0",
     "merge-sx": "^2.0.2",
+    "nanoevents": "^9.0.0",
     "optics-ts": "^2.4.1",
     "pixi.js": "7.4.2",
     "react": "^18.2.0",

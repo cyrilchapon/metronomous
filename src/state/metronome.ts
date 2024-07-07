@@ -27,6 +27,9 @@ const initialMetronomeState: MetronomeState = {
     progress: 0,
     divisionIndex: 0,
     progressInDivision: 0,
+    subdivisionIndex: 0,
+    progressInSubdivision: 0,
+    subdivisionIndexInDivision: 0
   },
 }
 
@@ -55,40 +58,21 @@ export const metronomeSubdivisionAtom = focusAtom(metronomeStateAtom, (optic) =>
   optic.prop('subdivisions')
 )
 
-export type MetronomeSubdivisionProgressState = {
-  totalSubdivisions: number
-  subdivisionIndexInDivision: number
-  subdivisionIndex: number
-  progressInSubdivision: number
-}
-export const metronomeSubdivisionProgressAtom =
-  atom<MetronomeSubdivisionProgressState>((get) => {
-    const {
-      signature,
-      subdivisions,
-      progress: { divisionIndex, progressInDivision },
-    } = get(metronomeStateAtom)
-
-    const totalSubdivisions = subdivisions * signature
-    const subdivisionIndexInDivision = Math.floor(
-      progressInDivision * subdivisions
-    )
-    const subdivisionIndex =
-      divisionIndex * subdivisions + subdivisionIndexInDivision
-
-    const progressInSubdivision = (progressInDivision * subdivisions) - subdivisionIndexInDivision
-
-    return {
-      totalSubdivisions,
-      subdivisionIndexInDivision,
-      subdivisionIndex,
-      progressInSubdivision
-    }
-  })
-
-metronome.setOnProgress((metronomeProgress) => {
+metronome.on('progress', (metronomeProgress) => {
   store.set(metronomeProgressAtom, metronomeProgress)
 })
+
+// metronome.on('tick', () => {
+//   console.log('tick')
+// })
+
+// metronome.on('subdivisionTick', () => {
+//   console.log('subdivisionTick')
+// })
+
+// metronome.on('subdivisionOnlyTick', () => {
+//   console.log('subdivisionOnlyTick')
+// })
 
 export const updateMetronomeBpmEffect = atomEffect((get) => {
   const bpm = get(metronomeBpmAtom)

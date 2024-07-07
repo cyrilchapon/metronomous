@@ -6,7 +6,6 @@ import { displaySettingsAtom } from '../../state/display-settings'
 import {
   metronomeProgressAtom,
   metronomeStateAtom,
-  metronomeSubdivisionProgressAtom,
 } from '../../state/metronome'
 import { emptyArray } from '../../util/array'
 import {
@@ -25,8 +24,6 @@ import * as easings from '@juliendargelos/easings'
 
 export const CircleVisualizationCore: ShapeVisualizationType = ({
   containerSquare,
-  width,
-  height,
   cursorEasing,
   lineWidth,
   subdivisionDotRadius,
@@ -37,15 +34,16 @@ export const CircleVisualizationCore: ShapeVisualizationType = ({
   flashOpacity,
   mainColor,
   cursorColor,
+  ...stageProps
 }) => {
   const { running, signature, subdivisions } = useAtomValue(metronomeStateAtom)
-  const { divisionIndex, progressInDivision } = useAtomValue(
-    metronomeProgressAtom
-  )
+  const {
+    divisionIndex,
+    progressInDivision,
+    subdivisionIndex,
+    progressInSubdivision,
+  } = useAtomValue(metronomeProgressAtom)
   const { cursorMode, flashMode } = useAtomValue(displaySettingsAtom)
-  const { subdivisionIndex, progressInSubdivision } = useAtomValue(
-    metronomeSubdivisionProgressAtom
-  )
 
   const circle = useMemo(() => boundCircle(containerSquare), [containerSquare])
 
@@ -85,16 +83,7 @@ export const CircleVisualizationCore: ShapeVisualizationType = ({
   )
 
   return (
-    <Stage
-      width={width}
-      height={height}
-      options={{
-        backgroundAlpha: 0,
-        antialias: true,
-        autoDensity: true,
-        resolution: window.devicePixelRatio,
-      }}
-    >
+    <Stage {...stageProps}>
       <MetronomeCircle
         circle={circle}
         color={mainColor}
