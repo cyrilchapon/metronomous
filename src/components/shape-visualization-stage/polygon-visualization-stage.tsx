@@ -19,7 +19,7 @@ import {
   MetronomeDot,
   MotionBlurredMetronomeDot,
 } from '../graphics/metronome-dot'
-import { MetronomePolygon } from '../graphics/metronome-shape'
+import { MetronomePolygon } from '../graphics/metronome-polygon'
 import { ShapeVisualizationType } from './shape-visualization-stage'
 import { Stage } from '@pixi/react'
 import {

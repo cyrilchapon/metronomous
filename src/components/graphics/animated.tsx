@@ -3,7 +3,7 @@ import { MetronomeDot } from './metronome-dot'
 import { AnimatedComponent } from 'react-spring'
 import { createHost } from '@react-spring/animated'
 import { MetronomeCircle } from './metronome-circle'
-import { MetronomePolygon } from './metronome-shape'
+import { MetronomePolygon } from './metronome-polygon'
 
 const host = createHost(
   {
