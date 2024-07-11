@@ -61,6 +61,7 @@ const _ShapeVisualization: FunctionComponent<_ShapeVisualizationProps> = ({
   const { cursorMode, cursorMass } = useAtomValue(displaySettingsAtom)
   const theme = useTheme()
 
+  const backColor = theme.drawPalette.back
   const mainColor = theme.drawPalette.main
   const cursorColor = theme.drawPalette.cursor
 
@@ -70,7 +71,7 @@ const _ShapeVisualization: FunctionComponent<_ShapeVisualizationProps> = ({
   )
 
   const cursorEasing = useMemo(
-    () => (cursorMode === 'mass' ? massEasingIn(cursorMass) : Easings.linear),
+    () => (cursorMode === 'eased' ? massEasingIn(cursorMass) : Easings.linear),
     [cursorMode, cursorMass]
   )
 
@@ -84,9 +85,10 @@ const _ShapeVisualization: FunctionComponent<_ShapeVisualizationProps> = ({
     [baseSquareSide]
   )
   const divisionDotRadius = useMemo(() => baseSquareSide / 50, [baseSquareSide])
-  const cursorDotRadius = useMemo(() => baseSquareSide / 30, [baseSquareSide])
+  const cursorDotRadius = useMemo(() => baseSquareSide / 50, [baseSquareSide])
   const flashDivisionRadiusMultiplicator = useMemo(() => baseSquareSide / 5, [baseSquareSide])
-  const flashSubdivisionRadiusMultiplicator = useMemo(() => baseSquareSide / 20, [baseSquareSide])
+  const flashSubdivisionRadiusMultiplicator = useMemo(() => baseSquareSide / 10, [baseSquareSide])
+  const flashSizeMultiplicator = useMemo(() => 1.8, [])
 
   const VisualizationCoreComponent = useMemo<ShapeVisualizationType>(
     () =>
@@ -103,9 +105,13 @@ const _ShapeVisualization: FunctionComponent<_ShapeVisualizationProps> = ({
       cursorDotRadius={cursorDotRadius}
       divisionDotRadius={divisionDotRadius}
       subdivisionDotRadius={subdivisionDotRadius}
+      flashSizeMultiplicator={flashSizeMultiplicator}
       divisionDotFlashRadius={flashDivisionRadiusMultiplicator}
       subdivisionDotFlashRadius={flashSubdivisionRadiusMultiplicator}
-      flashOpacity={0.8}
+      flashShapeOpacity={0.9}
+      flashShapeSubdivisionOpacity={0.2}
+      flashDivisionOpacity={0.9}
+      flashSubdivisionOpacity={0.5}
       lineWidth={lineWidth}
       mainColor={mainColor}
       cursorColor={cursorColor}
@@ -113,6 +119,7 @@ const _ShapeVisualization: FunctionComponent<_ShapeVisualizationProps> = ({
       width={width}
       height={height}
       options={{
+        backgroundColor: backColor,
         backgroundAlpha: 0,
         antialias: true,
         autoDensity: true,

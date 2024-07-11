@@ -34,6 +34,6 @@ export const SubdivisionIcon: FunctionComponent<SubdivisionIconProps> = ({
   const iconSvg = useMemo(() => getSubdivisionSvg(subdivision), [subdivision])
 
   return (
-    <SvgIcon {...props} component={iconSvg} inheritViewBox fontSize="medium" />
+    <SvgIcon inheritViewBox fontSize="medium" {...props} component={iconSvg} />
   )
 }

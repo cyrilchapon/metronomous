@@ -25,52 +25,7 @@ export const getLargestPossibleSquare = (
   return square
 }
 
-export const boundShape = (square: GeoSquare, sides: number) => {
-  if (sides <= 2) {
-    throw new TypeError(`Cannot calculate a polygon of ${sides} sides < 2.`)
-  }
-  return boundPolygon(square, sides)
-}
-
-export const boundPolygon = (square: GeoSquare, sides: number): GeoPolygon => {
-  const xs = square.map((p) => p[0])
-  const ys = square.map((p) => p[1])
-
-  const minX = Math.min(...xs)
-  const maxX = Math.max(...xs)
-  const minY = Math.min(...ys)
-  const maxY = Math.max(...ys)
-
-  const xCenter = minX + (maxX - minX) / 2
-  const yCenter = minY + (maxY - minY) / 2
-
-  // Dynamic radius to keep consistent height across shapes
-  const baseDiameter = maxX - minX
-  const diameter = baseDiameter * 0.85 // Safe size ratio
-  const radiusFactor = sides % 2 === 0 ? 2 : 1 + Math.cos(Math.PI / sides)
-  const radius = diameter / radiusFactor
-  const step = (2 * Math.PI) / sides
-
-  // Shift bottom after radius adjustment to keep top point aligned
-  const shift = radius - diameter / 2
-
-  const startAngle = -90 * (Math.PI / 180)
-
-  const polygon = new Array(sides)
-    .fill(null)
-    .reduce<GeoPolygon>((acc, _v, side) => {
-      const angleRad = side * step + startAngle
-      const nextPoint: GeoPoint = [
-        xCenter + radius * Math.cos(angleRad),
-        yCenter + shift + radius * Math.sin(angleRad),
-      ]
-      return [...acc, nextPoint]
-    }, [])
-
-  return polygon
-}
-
-export const boundCircle = (square: GeoSquare): GeoCircle => {
+export const getSquareCircle = (square: GeoSquare): GeoCircle => {
   const xs = square.map((p) => p[0])
   const ys = square.map((p) => p[1])
 
@@ -84,7 +39,53 @@ export const boundCircle = (square: GeoSquare): GeoCircle => {
 
   return {
     center: [xCenter, yCenter],
-    radius: (maxX - xCenter) * 0.85 // Safe size ratio
+    radius: (maxX - xCenter)
+  }
+}
+
+export const boundPolygon = (baseCircle: GeoCircle, sides: number, paddedRatio: number): GeoPolygon => {
+  const {
+    radius: baseRadius,
+    center: [xCenter, yCenter]
+  } = baseCircle
+
+  // Dynamic radius to keep consistent height across shapes
+  const basePaddedRadius = baseRadius * paddedRatio
+  const basePaddedDiameter = basePaddedRadius * 2
+  const radiusFactor = sides % 2 === 0 ? 2 : 1 + Math.cos(Math.PI / sides)
+  const polygonRadius = basePaddedDiameter / radiusFactor
+  const step = (2 * Math.PI) / sides
+
+  // Shift bottom after radius adjustment to keep top point aligned
+  const shift = polygonRadius - basePaddedDiameter / 2
+
+  const startAngle = -90 * (Math.PI / 180)
+
+  const polygon = new Array(sides)
+    .fill(null)
+    .reduce<GeoPolygon>((acc, _v, side) => {
+      const angleRad = side * step + startAngle
+      const nextPoint: GeoPoint = [
+        xCenter + polygonRadius * Math.cos(angleRad),
+        yCenter + shift + polygonRadius * Math.sin(angleRad),
+      ]
+      return [...acc, nextPoint]
+    }, [])
+
+  return polygon
+}
+
+export const boundCircle = (baseCircle: GeoCircle, paddedRatio: number): GeoCircle => {
+  const {
+    radius: baseRadius,
+    center
+  } = baseCircle
+
+  const paddedRadius = baseRadius * paddedRatio
+
+  return {
+    center,
+    radius: paddedRadius
   }
 }
 

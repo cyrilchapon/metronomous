@@ -1,11 +1,10 @@
 import { EasingFunction } from '@juliendargelos/easings'
 import { ColorSource } from 'pixi.js'
 import { GeoSquare } from '../../util/geometry'
-import { FunctionComponent } from 'react'
-import { PropsOf } from '@emotion/react'
+import { ComponentProps, FunctionComponent } from 'react'
 import { Stage } from '@pixi/react'
 
-export type StageProps = PropsOf<typeof Stage>
+export type StageProps = ComponentProps<typeof Stage>
 type _ShapeVisualizationShapeProps = {
   containerSquare: GeoSquare
   cursorEasing: EasingFunction
@@ -13,9 +12,13 @@ type _ShapeVisualizationShapeProps = {
   subdivisionDotRadius: number
   divisionDotRadius: number
   cursorDotRadius: number
+  flashSizeMultiplicator: number
   divisionDotFlashRadius: number
   subdivisionDotFlashRadius: number
-  flashOpacity: number
+  flashShapeOpacity: number
+  flashShapeSubdivisionOpacity: number
+  flashDivisionOpacity: number
+  flashSubdivisionOpacity: number
   mainColor: ColorSource
   cursorColor: ColorSource
 }

@@ -25,6 +25,7 @@ declare module '@mui/material/styles' {
   // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
   interface Theme {
     drawPalette: {
+      back: ColorSource
       main: ColorSource
       cursor: ColorSource
     }
@@ -32,6 +33,7 @@ declare module '@mui/material/styles' {
   // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
   interface ThemeOptions {
     drawPalette: {
+      back: ColorSource
       main: ColorSource
       cursor: ColorSource
     }
@@ -53,10 +55,12 @@ const getTheme = (mode: PaletteMode) => {
     drawPalette:
       mode === 'light'
         ? {
+            back: 0xffffff,
             main: 0x000000,
             cursor: 0xff3300,
           }
         : {
+            back: 0x121212,
             main: 0xff3300,
             cursor: 0xffffff,
           },

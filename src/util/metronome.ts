@@ -39,10 +39,12 @@ export type MetronomeEvents = {
   tick: (divisionIndex: number, progress: MetronomeProgress) => void
   subdivisionTick: (
     subdivisionIndex: number,
+    divisionIndex: number,
     progress: MetronomeProgress
   ) => void
   subdivisionOnlyTick: (
     subdivisionIndex: number,
+    divisionIndex: number,
     progress: MetronomeProgress
   ) => void
 }
@@ -205,7 +207,7 @@ export class Metronome {
     } // else leave it running
 
     if (this.metronomeTickerId == null) {
-      this.metronomeTickerId = requestAnimationFrame(this.tick.bind(this))
+      this.metronomeTickerId = Metronome.requestDrawFrame(this.transport, this.tick.bind(this))
     } // else leave it running
   }
 
@@ -216,14 +218,24 @@ export class Metronome {
     } // else leave it running
 
     if (this.metronomeTickerId != null) {
-      cancelAnimationFrame(this.metronomeTickerId)
+      Metronome.cancelDrawFrame(this.transport, this.metronomeTickerId)
       this.metronomeTickerId = null
     } // else leave it stopped
   }
 
   tick() {
     this.sendProgress()
-    this.metronomeTickerId = requestAnimationFrame(this.tick.bind(this))
+    this.metronomeTickerId = Metronome.requestDrawFrame(this.transport, this.tick.bind(this))
+  }
+
+  static requestDrawFrame(transport: TransportClass, callback: () => void) {
+    return requestAnimationFrame(() => {
+      Tone.getDraw().schedule(callback, transport.immediate())
+    })
+  }
+
+  static cancelDrawFrame(transport: TransportClass, id: number) {
+    transport.clear(id)
   }
 
   private sendProgress(forceProgress?: number) {
@@ -238,11 +250,17 @@ export class Metronome {
       this._emitter.emit(
         'subdivisionOnlyTick',
         subdivisionIndex,
+        divisionIndex,
         this._getProgress()
       )
     }
 
-    this._emitter.emit('subdivisionTick', subdivisionIndex, this._getProgress())
+    this._emitter.emit(
+      'subdivisionTick',
+      subdivisionIndex,
+      divisionIndex,
+      this._getProgress()
+    )
   }
 
   private _rebuildSequence() {

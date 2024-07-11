@@ -35,7 +35,7 @@ const initialMetronomeState: MetronomeState = {
 
 const transport = Tone.getTransport()
 
-const metronome = new Metronome(
+export const metronome = new Metronome(
   transport,
   initialMetronomeState.signature,
   initialMetronomeState.subdivisions

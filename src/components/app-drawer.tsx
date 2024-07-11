@@ -15,6 +15,7 @@ import { FunctionComponent, useCallback } from 'react'
 import {
   CursorMode,
   FlashMode,
+  ShapeDivisions,
   ShapeMode,
   displaySettingsAtom,
 } from '../state/display-settings'
@@ -36,6 +37,8 @@ import PentagonOutlinedIcon from '@mui/icons-material/PentagonOutlined'
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined'
 import CommitOutlinedIcon from '@mui/icons-material/CommitOutlined'
 import AnimationOutlinedIcon from '@mui/icons-material/AnimationOutlined'
+import HdrStrongOutlinedIcon from '@mui/icons-material/HdrStrongOutlined'
+import CircleIcon from '@mui/icons-material/Circle'
 
 const marks = easingMasses.map((m) => ({ value: m }))
 const minMass = Math.min(...easingMasses)
@@ -91,6 +94,7 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
                   setMetronomeSignature(value)
                 }}
                 fullWidth
+                size="small"
               >
                 {metronomeSignatures.map((signature) => (
                   <ToggleButton key={signature} value={signature}>
@@ -113,10 +117,14 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
                   setMetronomeSubdivision(value)
                 }}
                 fullWidth
+                size="small"
               >
                 {metronomeSubdivisions.map((subdivision) => (
                   <ToggleButton key={subdivision} value={subdivision}>
-                    <SubdivisionIcon subdivision={subdivision} />
+                    <SubdivisionIcon
+                      subdivision={subdivision}
+                      fontSize="small"
+                    />
                   </ToggleButton>
                 ))}
               </ToggleButtonGroup>
@@ -132,7 +140,7 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
 
             <Box>
               <InputLabel htmlFor="line-shape-input" sx={{ marginBottom: 1 }}>
-                Forme du contour
+                Forme
               </InputLabel>
 
               <ToggleButtonGroup
@@ -148,12 +156,49 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
                   }))
                 }}
                 fullWidth
+                size="small"
               >
                 <ToggleButton value={'circle'}>
-                  <CircleOutlinedIcon sx={{ mr: 1 }} /> Cercle
+                  <CircleOutlinedIcon sx={{ mr: 1 }} fontSize="small" /> Cercle
                 </ToggleButton>
                 <ToggleButton value={'polygon'}>
-                  <PentagonOutlinedIcon sx={{ mr: 1 }} /> Polygone
+                  <PentagonOutlinedIcon sx={{ mr: 1 }} fontSize="small" />{' '}
+                  Polygone
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+
+            <Box>
+              <InputLabel htmlFor="cursor-mass-input" sx={{ marginBottom: 1 }}>
+                Subdivisions
+              </InputLabel>
+
+              <ToggleButtonGroup
+                value={displaySettings.shapeSubdivisions}
+                exclusive
+                onChange={(_event, value: ShapeDivisions) => {
+                  if (value == null) {
+                    return
+                  }
+                  setDisplaySettings((prevState) => ({
+                    ...prevState,
+                    shapeSubdivisions: value,
+                  }))
+                }}
+                fullWidth
+                size="small"
+              >
+                <ToggleButton value={'off'}>Off</ToggleButton>
+                <ToggleButton value={'divisions'}>
+                  <CircleIcon
+                    sx={{ mr: 1, fontSize: '1em' }}
+                    fontSize="small"
+                  />{' '}
+                  Temps
+                </ToggleButton>
+                <ToggleButton value={'subdivisions'}>
+                  <HdrStrongOutlinedIcon sx={{ mr: 1 }} fontSize="small" />{' '}
+                  Toutes
                 </ToggleButton>
               </ToggleButtonGroup>
             </Box>
@@ -184,12 +229,16 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
                   }))
                 }}
                 fullWidth
+                size="small"
               >
-                <ToggleButton value={'mass'}>
-                  <AnimationOutlinedIcon sx={{ mr: 1 }} /> Inertie
+                <ToggleButton value={'off'}>Off</ToggleButton>
+                <ToggleButton value={'eased'}>
+                  <AnimationOutlinedIcon sx={{ mr: 1 }} fontSize="small" />{' '}
+                  Inertie
                 </ToggleButton>
-                <ToggleButton value={'subdivisions'}>
-                  <CommitOutlinedIcon sx={{ mr: 1 }} /> Subdivisions
+                <ToggleButton value={'linear'}>
+                  <CommitOutlinedIcon sx={{ mr: 1 }} fontSize="small" />{' '}
+                  Subdivisions
                 </ToggleButton>
               </ToggleButtonGroup>
             </Box>
@@ -198,7 +247,7 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
               <InputLabel
                 htmlFor="cursor-mass-input"
                 sx={{ marginBottom: 1 }}
-                disabled={displaySettings.cursorMode !== 'mass'}
+                disabled={displaySettings.cursorMode !== 'eased'}
               >
                 Masse du curseur
               </InputLabel>
@@ -206,7 +255,7 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
               <Slider
                 id="cursor-mass-input"
                 value={displaySettings.cursorMass}
-                disabled={displaySettings.cursorMode !== 'mass'}
+                disabled={displaySettings.cursorMode !== 'eased'}
                 onChange={(_e, value) => {
                   assertIsEasingMass(value)
 
@@ -239,13 +288,18 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
                 }}
                 fullWidth
               >
-                <ToggleButton value={'divisions'}>
-                  {/* <AnimationOutlinedIcon sx={{ mr: 1 }} /> */}
-                  On
+                <ToggleButton value={'none'}>Off</ToggleButton>
+                <ToggleButton value={'shape'}>
+                  {displaySettings.shapeMode === 'circle' ? (
+                    <CircleOutlinedIcon sx={{ mr: 1 }} fontSize="small" />
+                  ) : displaySettings.shapeMode === 'polygon' ? (
+                    <PentagonOutlinedIcon sx={{ mr: 1 }} fontSize="small" />
+                  ) : null}
+                  Forme
                 </ToggleButton>
-                <ToggleButton value={'none'}>
-                  {/* <CommitOutlinedIcon sx={{ mr: 1 }} /> */}
-                  Off
+                <ToggleButton value={'divisions'}>
+                  <CommitOutlinedIcon sx={{ mr: 1 }} fontSize="small" />{' '}
+                  Subdivisions
                 </ToggleButton>
               </ToggleButtonGroup>
             </Box>
