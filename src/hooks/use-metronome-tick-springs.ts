@@ -90,7 +90,6 @@ export const useMetronomeEventSpringEffect = <
     return () => {
       unsubscribe()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metronome, event, springs.length, springApi, getDivisionSpringIndex])
 }
 
