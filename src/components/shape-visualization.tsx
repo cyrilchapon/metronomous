@@ -58,7 +58,7 @@ const _ShapeVisualization: FunctionComponent<_ShapeVisualizationProps> = ({
 }) => {
   const { shapeMode } = useAtomValue(displaySettingsAtom)
 
-  const { cursorMode, cursorMass } = useAtomValue(displaySettingsAtom)
+  const { cursorMoveMode, cursorMass } = useAtomValue(displaySettingsAtom)
   const theme = useTheme()
 
   const backColor = theme.drawPalette.back
@@ -71,8 +71,8 @@ const _ShapeVisualization: FunctionComponent<_ShapeVisualizationProps> = ({
   )
 
   const cursorEasing = useMemo(
-    () => (cursorMode === 'eased' ? massEasingIn(cursorMass) : Easings.linear),
-    [cursorMode, cursorMass]
+    () => (cursorMoveMode === 'eased' ? massEasingIn(cursorMass) : Easings.linear),
+    [cursorMoveMode, cursorMass]
   )
 
   const baseSquareSide = useMemo(
@@ -86,6 +86,7 @@ const _ShapeVisualization: FunctionComponent<_ShapeVisualizationProps> = ({
   )
   const divisionDotRadius = useMemo(() => baseSquareSide / 50, [baseSquareSide])
   const cursorDotRadius = useMemo(() => baseSquareSide / 50, [baseSquareSide])
+  const centerDotRadius = useMemo(() => baseSquareSide / 80, [baseSquareSide])
   const flashDivisionRadiusMultiplicator = useMemo(() => baseSquareSide / 5, [baseSquareSide])
   const flashSubdivisionRadiusMultiplicator = useMemo(() => baseSquareSide / 10, [baseSquareSide])
   const flashSizeMultiplicator = useMemo(() => 1.8, [])
@@ -103,6 +104,7 @@ const _ShapeVisualization: FunctionComponent<_ShapeVisualizationProps> = ({
       containerSquare={largestPossibleSquare}
       cursorEasing={cursorEasing}
       cursorDotRadius={cursorDotRadius}
+      centerDotRadius={centerDotRadius}
       divisionDotRadius={divisionDotRadius}
       subdivisionDotRadius={subdivisionDotRadius}
       flashSizeMultiplicator={flashSizeMultiplicator}

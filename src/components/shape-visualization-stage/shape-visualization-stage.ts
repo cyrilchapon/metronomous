@@ -12,6 +12,7 @@ type _ShapeVisualizationShapeProps = {
   subdivisionDotRadius: number
   divisionDotRadius: number
   cursorDotRadius: number
+  centerDotRadius: number
   flashSizeMultiplicator: number
   divisionDotFlashRadius: number
   subdivisionDotFlashRadius: number
@@ -23,6 +24,8 @@ type _ShapeVisualizationShapeProps = {
   cursorColor: ColorSource
 }
 
-export type ShapeVisualizationShapeProps = StageProps & _ShapeVisualizationShapeProps
+export type ShapeVisualizationShapeProps = StageProps &
+  _ShapeVisualizationShapeProps
 
-export type ShapeVisualizationType = FunctionComponent<ShapeVisualizationShapeProps>
+export type ShapeVisualizationType =
+  FunctionComponent<ShapeVisualizationShapeProps>

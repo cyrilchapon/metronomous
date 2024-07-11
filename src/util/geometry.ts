@@ -1,6 +1,7 @@
 import { emptyArray } from "./array"
 
 export type GeoPoint = [number, number]
+export type GeoLine = [GeoPoint, GeoPoint]
 export type GeoSegment = [GeoPoint, GeoPoint]
 export type GeoPolygon = GeoPoint[]
 export type GeoSquare = [GeoPoint, GeoPoint, GeoPoint, GeoPoint]
@@ -137,8 +138,9 @@ export const pointInPolygon = (
   return point
 }
 
-const progressToRadian = (progress: number): number => Math.PI * 2 * progress
-const radianToProgress = (radian: number): number => radian / (Math.PI * 2)
+export const progressToRadian = (progress: number): number => Math.PI * 2 * progress
+export const radianToProgress = (radian: number): number => radian / (Math.PI * 2)
+export const radianToDegree = (radian: number): number => radian * (180 / Math.PI)
 
 export const pointInCircle = (
   circle: GeoCircle,

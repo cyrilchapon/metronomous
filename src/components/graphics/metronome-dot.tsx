@@ -1,14 +1,25 @@
-import { ColorSource } from 'pixi.js'
-import { SmoothGraphics as PixiSmoothGraphics } from '@pixi/graphics-smooth'
+import { ColorSource, Graphics as PixiGraphics } from 'pixi.js'
 import { GeoPoint } from '../../util/geometry'
-import { PixiComponent, applyDefaultProps, Graphics } from '@pixi/react'
-import { ComponentProps, FunctionComponent, useCallback, useMemo } from 'react'
+import { Graphics } from '@pixi/react'
+import {
+  FunctionComponent,
+  Ref,
+  forwardRef,
+  memo,
+  useCallback,
+  useMemo,
+} from 'react'
 import { useMotionSpeedPoint } from '../../hooks/use-motion-speed'
 import { MotionBlurredContainer } from './motion-blurred-container'
 import { MotionBlurFilter } from '@pixi/filter-motion-blur'
-
-type GraphicsProps = ComponentProps<typeof Graphics>
-type Draw = NonNullable<GraphicsProps['draw']>
+import {
+  Draw,
+  IGraphics,
+  ISmoothGraphics,
+  SmoothDraw,
+  SmoothGraphics,
+} from './smooth-graphics'
+import { SmoothGraphics as PixiSmoothGraphics } from '@pixi/graphics-smooth'
 
 type _MetronomeDotProps = {
   point: GeoPoint
@@ -17,88 +28,89 @@ type _MetronomeDotProps = {
   opacity: number
 }
 
-export type MetronomeDotProps = Omit<GraphicsProps, 'position' | 'draw'> & _MetronomeDotProps
+export type NativeMetronomeDotProps = Omit<
+  IGraphics,
+  'ref' | 'position' | 'draw'
+> &
+  _MetronomeDotProps
 
-export const MetronomeDot: FunctionComponent<MetronomeDotProps> = ({
-  point: [x, y],
-  color,
-  radius,
-  opacity,
-  ...graphicsProps
-}) => {
-  const redraw = useCallback<Draw>((g) => {
-    g.clear()
-    g.beginFill(color, opacity)
-    g.drawCircle(0, 0, radius)
-    g.endFill()
-  }, [color, opacity, radius])
+const _NativeMetronomeDot: FunctionComponent<NativeMetronomeDotProps> =
+  forwardRef<typeof PixiGraphics, NativeMetronomeDotProps>(
+    function __NativeMetronomeDot(
+      { point: [x, y], color, radius, opacity, ...graphicsProps },
+      ref
+    ) {
+      const redraw = useCallback<Draw>(
+        (g) => {
+          g.clear()
+          g.beginFill(color, opacity)
+          g.drawCircle(0, 0, radius)
+          g.endFill()
+        },
+        [color, opacity, radius]
+      )
 
-  return (
-    <Graphics position={[x, y]} draw={redraw} {...graphicsProps} />
+      return (
+        <Graphics
+          position={[x, y]}
+          draw={redraw}
+          ref={ref as Ref<PixiGraphics>}
+          {...graphicsProps}
+        />
+      )
+    }
   )
-}
 
-export const SmoothMetronomeDot = PixiComponent<
-  MetronomeDotProps,
-  PixiSmoothGraphics
->('SmoothMetronomeDot', {
-  create: ({ point: [x, y], color, radius, opacity }) => {
-    const g = new PixiSmoothGraphics()
+export const NativeMetronomeDot = memo(_NativeMetronomeDot)
 
-    g.beginFill(color, opacity, true)
-    g.drawCircle(0, 0, radius)
-    g.endFill()
+export type MetronomeDotProps = Omit<
+  ISmoothGraphics,
+  'ref' | 'position' | 'draw'
+> &
+  _MetronomeDotProps
 
-    g.position.x = x
-    g.position.y = y
-
-    return g
-  },
-  applyProps: (g, oldProps: MetronomeDotProps, newProps) => {
-    const {
-      color: oldColor,
-      radius: oldRadius,
-      opacity: oldOpacity,
-      ...oldRestProps
-    } = oldProps
-
-    const {
-      point: [x, y],
-      color,
-      radius,
-      opacity,
-      ...newRestProps
-    } = newProps
-
-    applyDefaultProps(g, oldRestProps, newRestProps)
-
-    const needRedraw =
-      color !== oldColor || radius !== oldRadius || opacity !== oldOpacity
-
-    if (needRedraw) {
+const _MetronomeDot: FunctionComponent<MetronomeDotProps> = forwardRef<
+  PixiSmoothGraphics,
+  MetronomeDotProps
+>(function __MetronomeDot(
+  { point: [x, y], color, radius, opacity, ...graphicsProps },
+  ref
+) {
+  const redraw = useCallback<SmoothDraw>(
+    (g) => {
       g.clear()
       g.beginFill(color, opacity, true)
       g.drawCircle(0, 0, radius)
       g.endFill()
-    }
+    },
+    [color, opacity, radius]
+  )
 
-    g.position.x = x
-    g.position.y = y
-  },
+  return (
+    <SmoothGraphics
+      position={[x, y]}
+      draw={redraw}
+      ref={ref as Ref<PixiSmoothGraphics>}
+      {...graphicsProps}
+    />
+  )
 })
 
-export type BlurredMetronomeDotProps = Omit<MetronomeDotProps, 'ref'> & {
-  running: boolean
-  speedFactor: number
-  speedTrigger: number
-  motionBlur: Partial<
-    InstanceType<typeof MotionBlurFilter> & {
-      construct: ConstructorParameters<typeof MotionBlurFilter>
-    }
-  >
-}
+export const MetronomeDot = memo(_MetronomeDot)
 
-export const MotionBlurredMetronomeDot: FunctionComponent<
+export type BlurredMetronomeDotProps = MetronomeDotProps &
+  NativeMetronomeDotProps & {
+    running: boolean
+    speedFactor: number
+    speedTrigger: number
+    motionBlur: Partial<
+      InstanceType<typeof MotionBlurFilter> & {
+        construct: ConstructorParameters<typeof MotionBlurFilter>
+      }
+    >
+  }
+
+const _MotionBlurredMetronomeDot: FunctionComponent<
   BlurredMetronomeDotProps
 > = (props) => {
   const {
@@ -128,9 +140,13 @@ export const MotionBlurredMetronomeDot: FunctionComponent<
         >
           <MetronomeDot {...metronomeDotProps} />
         </MotionBlurredContainer>
-      ) : null}
+      ) : (
+        <NativeMetronomeDot {...metronomeDotProps} />
+      )}
 
-      <SmoothMetronomeDot {...metronomeDotProps} />
+      {/* <MetronomeDot {...metronomeDotProps} /> */}
     </>
   )
 }
+
+export const MotionBlurredMetronomeDot = memo(_MotionBlurredMetronomeDot)

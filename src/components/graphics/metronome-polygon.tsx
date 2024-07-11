@@ -1,54 +1,55 @@
-import { ColorSource, Graphics as _Graphics } from 'pixi.js'
+import { ColorSource } from 'pixi.js'
 import { GeoPolygon } from '../../util/geometry'
-import { PixiComponent, applyDefaultProps } from '@pixi/react'
-import { isEqual as deepEquals } from 'lodash-es'
+import { ISmoothGraphics, SmoothDraw, SmoothGraphics } from './smooth-graphics'
+import {
+  FunctionComponent,
+  Ref,
+  forwardRef,
+  memo,
+  useCallback,
+  useMemo,
+} from 'react'
+import { SmoothGraphics as PixiSmoothGraphics } from '@pixi/graphics-smooth'
 
-export type MetronomePolygonProps = {
+type _MetronomePolygonProps = {
   polygon: GeoPolygon
   color: ColorSource
   fillOpacity: number
   lineWidth: number
   lineOpacity: number
 }
-export const MetronomePolygon = PixiComponent<MetronomePolygonProps, _Graphics>(
-  'MetronomePolygon',
-  {
-    create: () => new _Graphics(),
-    applyProps: (g, oldProps: MetronomePolygonProps, newProps) => {
-      const {
-        polygon: oldPolygon,
-        color: oldColor,
-        fillOpacity: oldFillOpacity,
-        lineWidth: oldLineWidth,
-        lineOpacity: oldLineOpacity,
-        ...oldRestProps
-      } = oldProps
 
-      const {
-        polygon,
-        color,
-        fillOpacity,
-        lineWidth,
-        lineOpacity,
-        ...newRestProps
-      } = newProps
+export type MetronomePolygonProps = Omit<ISmoothGraphics, 'ref' | 'draw'> &
+  _MetronomePolygonProps
 
-      applyDefaultProps(g, oldRestProps, newRestProps)
+const _MetronomePolygon: FunctionComponent<MetronomePolygonProps> = forwardRef<
+  PixiSmoothGraphics,
+  MetronomePolygonProps
+>(function __MetronomePolygon(
+  { polygon, color, fillOpacity, lineWidth, lineOpacity, ...graphicsProps },
+  ref
+) {
+  const polygonKey = useMemo(() => JSON.stringify(polygon), [polygon])
 
-      const needRedraw =
-        color !== oldColor ||
-        oldFillOpacity !== oldFillOpacity ||
-        oldLineWidth !== lineWidth ||
-        oldLineOpacity !== lineOpacity ||
-        (oldPolygon !== polygon && !deepEquals(oldPolygon, polygon))
-
-      if (needRedraw) {
-        g.clear()
-        g.beginFill(color, fillOpacity)
-        g.lineStyle(lineWidth, color, lineOpacity)
-        g.drawPolygon([...polygon.flatMap((point) => point)])
-        g.endFill()
-      }
+  const redraw = useCallback<SmoothDraw>(
+    (g) => {
+      g.clear()
+      g.beginFill(color, fillOpacity)
+      g.lineStyle(lineWidth, color, lineOpacity)
+      g.drawPolygon([...polygon.flatMap((point) => point)])
+      g.endFill()
     },
-  }
-)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [polygonKey, color, fillOpacity, lineWidth, lineOpacity]
+  )
+
+  return (
+    <SmoothGraphics
+      draw={redraw}
+      ref={ref as Ref<PixiSmoothGraphics>}
+      {...graphicsProps}
+    />
+  )
+})
+
+export const MetronomePolygon = memo(_MetronomePolygon)

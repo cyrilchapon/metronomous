@@ -574,6 +574,16 @@
   resolved "https://registry.yarnpkg.com/@juliendargelos/easings/-/easings-0.0.6.tgz#39c480725886fa7d748edd1a81e1127410581e58"
   integrity sha512-tnsWAhyixuv3pnSj4H5Im6/nrdDfBSAsoru1qrZjbJIV5gWDUCMwPj3psaggQxDaiwelM8HTOoyNUNqmHQFQng==
 
+"@mdi/js@^7.4.47":
+  version "7.4.47"
+  resolved "https://registry.yarnpkg.com/@mdi/js/-/js-7.4.47.tgz#7d8a4edc9631bffeed80d1ec784f9beae559a76a"
+  integrity sha512-KPnNOtm5i2pMabqZxpUz7iQf+mfrYZyKCZ8QNz85czgEt7cuHcGorWfdzUMWYA0SD+a6Hn4FmJ+YhzzzjkTZrQ==
+
+"@mdi/svg@^7.4.47":
+  version "7.4.47"
+  resolved "https://registry.yarnpkg.com/@mdi/svg/-/svg-7.4.47.tgz#f8e5516aae129764a76d1bb2f27e55bee03e6e90"
+  integrity sha512-WQ2gDll12T9WD34fdRFgQVgO8bag3gavrAgJ0frN4phlwdJARpE6gO1YvLEMJR0KKgoc+/Ea/A0Pp11I00xBvw==
+
 "@mui/base@5.0.0-beta.40":
   version "5.0.0-beta.40"
   resolved "https://registry.yarnpkg.com/@mui/base/-/base-5.0.0-beta.40.tgz#1f8a782f1fbf3f84a961e954c8176b187de3dae2"
@@ -793,6 +803,11 @@
   version "7.4.2"
   resolved "https://registry.yarnpkg.com/@pixi/filter-noise/-/filter-noise-7.4.2.tgz#99aebe14d0f52aaa8509e2531f1a4e658a702da9"
   integrity sha512-Vy9ViBFhZEGh6xKkd3kFWErolZTwv1Y5Qb1bV7qPIYbvBECYsqzlR4uCrrjBV6KKm0PufpG/+NKC5vICZaqKzg==
+
+"@pixi/filter-radial-blur@^5.1.1":
+  version "5.1.1"
+  resolved "https://registry.yarnpkg.com/@pixi/filter-radial-blur/-/filter-radial-blur-5.1.1.tgz#e96821b0c0f10ce0806bc346a812e38bb1c27e80"
+  integrity sha512-q6RreUM+RO25HZaxc6ceEOSi6chadv8vrCOvupNLSY+1lvXue0KyFK6vxMcMInNdqRGYWSyJ+ql3RyHMTr93aw==
 
 "@pixi/graphics-smooth@^1.1.0":
   version "1.1.0"

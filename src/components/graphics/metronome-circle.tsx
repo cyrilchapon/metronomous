@@ -1,8 +1,10 @@
-import { ColorSource, Graphics as _Graphics } from 'pixi.js'
+import { ColorSource } from 'pixi.js'
+import { ISmoothGraphics, SmoothDraw, SmoothGraphics } from './smooth-graphics'
+import { FunctionComponent, Ref, forwardRef, memo, useCallback } from 'react'
 import { GeoPoint } from '../../util/geometry'
-import { PixiComponent, applyDefaultProps } from '@pixi/react'
+import { SmoothGraphics as PixiSmoothGraphics } from '@pixi/graphics-smooth'
 
-export type MetronomeCircleProps = {
+export type _MetronomeCircleProps = {
   center: GeoPoint
   radius: number
   color: ColorSource
@@ -10,48 +12,43 @@ export type MetronomeCircleProps = {
   lineWidth: number
   lineOpacity: number
 }
-export const MetronomeCircle = PixiComponent<MetronomeCircleProps, _Graphics>(
-  'MetronomeCircle',
+
+export type MetronomeCircleProps = Omit<ISmoothGraphics, 'ref' | 'draw'> &
+  _MetronomeCircleProps
+
+const _MetronomeCircle: FunctionComponent<MetronomeCircleProps> = forwardRef<
+  PixiSmoothGraphics,
+  MetronomeCircleProps
+>(function __MetronomeCircle(
   {
-    create: () => new _Graphics(),
-    applyProps: (g, oldProps: MetronomeCircleProps, newProps) => {
-      const {
-        center: oldCenter,
-        radius: oldRadius,
-        color: oldColor,
-        fillOpacity: oldFillOpacity,
-        lineWidth: oldLineWidth,
-        lineOpacity: oldLineOpacity,
-        ...oldRestProps
-      } = oldProps
-
-      const {
-        center,
-        radius,
-        color,
-        fillOpacity,
-        lineWidth,
-        lineOpacity,
-        ...newRestProps
-      } = newProps
-
-      applyDefaultProps(g, oldRestProps, newRestProps)
-
-      const needRedraw =
-        color !== oldColor ||
-        oldFillOpacity !== oldFillOpacity ||
-        oldLineWidth !== lineWidth ||
-        oldLineOpacity !== lineOpacity ||
-        oldCenter !== center ||
-        oldRadius !== radius
-
-      if (needRedraw) {
-        g.clear()
-        g.beginFill(color, fillOpacity)
-        g.lineStyle(lineWidth, color, lineOpacity)
-        g.drawCircle(center[0], center[1], radius)
-        g.endFill()
-      }
+    center: [centerX, centerY],
+    radius,
+    color,
+    fillOpacity,
+    lineWidth,
+    lineOpacity,
+    ...graphicsProps
+  },
+  ref
+) {
+  const redraw = useCallback<SmoothDraw>(
+    (g) => {
+      g.clear()
+      g.beginFill(color, fillOpacity)
+      g.lineStyle(lineWidth, color, lineOpacity)
+      g.drawCircle(centerX, centerY, radius)
+      g.endFill()
     },
-  }
-)
+    [centerX, centerY, radius, color, fillOpacity, lineWidth, lineOpacity]
+  )
+
+  return (
+    <SmoothGraphics
+      draw={redraw}
+      ref={ref as Ref<PixiSmoothGraphics>}
+      {...graphicsProps}
+    />
+  )
+})
+
+export const MetronomeCircle = memo(_MetronomeCircle)

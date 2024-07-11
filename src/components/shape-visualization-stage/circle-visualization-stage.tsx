@@ -10,6 +10,7 @@ import {
 } from '../../state/metronome'
 import { emptyArray } from '../../util/array'
 import {
+  GeoLine,
   boundCircle,
   getSquareCircle,
   pointInCircleDivision,
@@ -31,6 +32,7 @@ import {
   getTickingDotSpringProps,
   useMetronomeTickSprings,
 } from '../../hooks/use-metronome-tick-springs'
+import { MetronomeLine } from '../graphics/metronome-line'
 
 export const CircleVisualizationCore: ShapeVisualizationType = ({
   containerSquare,
@@ -39,6 +41,7 @@ export const CircleVisualizationCore: ShapeVisualizationType = ({
   subdivisionDotRadius,
   divisionDotRadius,
   cursorDotRadius,
+  centerDotRadius,
   flashSizeMultiplicator,
   divisionDotFlashRadius,
   subdivisionDotFlashRadius,
@@ -98,6 +101,11 @@ export const CircleVisualizationCore: ShapeVisualizationType = ({
         cursorEasing
       ),
     [circle, signature, divisionIndex, progressInDivision, cursorEasing]
+  )
+
+  const cursorLine = useMemo<GeoLine>(
+    () => [containerCircle.center, cursorPoint],
+    [containerCircle.center, cursorPoint]
   )
 
   const [divisionSprings] = useMetronomeTickSprings(
@@ -173,9 +181,12 @@ export const CircleVisualizationCore: ShapeVisualizationType = ({
     )
   )
 
+  console.log(containerCircle.center)
+
   return (
     <Stage {...stageProps}>
-      {displaySettings.flashMode === 'shape'
+      {/* Circle main divisions flashes */}
+      {displaySettings.flashMode.includes('shape')
         ? divisionPoints.map((point, pointIndex) => {
             const shapeSpring = shapeSprings[pointIndex]
 
@@ -193,7 +204,8 @@ export const CircleVisualizationCore: ShapeVisualizationType = ({
           })
         : null}
 
-      {displaySettings.flashMode === 'shape' &&
+      {/* Circle subdivisions flashes */}
+      {displaySettings.flashMode.includes('shape') &&
       displaySettings.shapeSubdivisions === 'subdivisions'
         ? subdivisionsPoints.map((divisionPoints, _divisionIndex) =>
             divisionPoints.map((point, pointIndex) => {
@@ -218,21 +230,25 @@ export const CircleVisualizationCore: ShapeVisualizationType = ({
           )
         : null}
 
+      {/* Background circle */}
       <MetronomeCircle
-        {...circle}
+        center={circle.center}
+        radius={circle.radius}
         color={mainColor}
         fillOpacity={0.1}
         lineWidth={lineWidth}
         lineOpacity={0.5}
       />
 
+      {/* Main divisions */}
       {displaySettings.shapeSubdivisions !== 'off'
         ? divisionPoints.map((point, pointIndex) => {
             const divisionSpring = divisionSprings[pointIndex]
 
             return (
               <Fragment key={`${point[0]}-${point[1]}`}>
-                {displaySettings.flashMode === 'divisions' ? (
+                {/* Flashes on main divisions */}
+                {displaySettings.flashMode.includes('divisions') ? (
                   <AnimatedMetronomeDot
                     opacity={divisionSpring.opacity}
                     radius={divisionSpring.radius}
@@ -241,6 +257,7 @@ export const CircleVisualizationCore: ShapeVisualizationType = ({
                   />
                 ) : null}
 
+                {/* Main divisions dot */}
                 <MetronomeDot
                   point={point}
                   color={mainColor}
@@ -252,6 +269,7 @@ export const CircleVisualizationCore: ShapeVisualizationType = ({
           })
         : null}
 
+      {/* Subdivisions */}
       {displaySettings.shapeSubdivisions === 'subdivisions' && subdivisions > 1
         ? subdivisionsPoints.map((divisionPoints, _divisionIndex) =>
             divisionPoints.map((point, pointIndex) => {
@@ -262,7 +280,8 @@ export const CircleVisualizationCore: ShapeVisualizationType = ({
 
               return (
                 <Fragment key={`${point[0]}-${point[1]}`}>
-                  {displaySettings.flashMode === 'divisions' ? (
+                  {/* Flashes on subdivisions */}
+                  {displaySettings.flashMode.includes('divisions') ? (
                     <AnimatedMetronomeDot
                       opacity={subdivisionSpring.opacity}
                       radius={subdivisionSpring.radius}
@@ -271,6 +290,7 @@ export const CircleVisualizationCore: ShapeVisualizationType = ({
                     />
                   ) : null}
 
+                  {/* Subdivisions dot */}
                   <MetronomeDot
                     point={point}
                     color={mainColor}
@@ -283,18 +303,41 @@ export const CircleVisualizationCore: ShapeVisualizationType = ({
           )
         : null}
 
-      {displaySettings.cursorMode !== 'off' ? (
+      {/* Cursor line */}
+      {displaySettings.cursorMode.includes('line') ? (
+        <>
+          {/* Cursor Line */}
+          <MetronomeLine
+            pointA={cursorLine[0]}
+            pointB={cursorLine[1]}
+            color={cursorColor}
+            lineOpacity={1}
+            lineWidth={lineWidth}
+          />
+
+          {/* Center dot */}
+          <MetronomeDot
+            point={containerCircle.center}
+            color={cursorColor}
+            radius={centerDotRadius}
+            opacity={1}
+          />
+        </>
+      ) : null}
+
+      {/* Cursor dot */}
+      {displaySettings.cursorMode.includes('dot') ? (
         <MotionBlurredMetronomeDot
           point={cursorPoint}
           color={cursorColor}
           radius={cursorDotRadius}
           opacity={1}
           running={running}
-          speedFactor={3}
-          speedTrigger={3}
+          speedFactor={2}
+          speedTrigger={4}
           motionBlur={{
             offset: -2,
-            kernelSize: cursorDotRadius,
+            kernelSize: 5,
           }}
         />
       ) : null}

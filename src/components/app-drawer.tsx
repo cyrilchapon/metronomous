@@ -6,6 +6,7 @@ import {
   InputLabel,
   Slider,
   Stack,
+  SvgIcon,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
@@ -14,6 +15,7 @@ import { useAtom } from 'jotai'
 import { FunctionComponent, useCallback } from 'react'
 import {
   CursorMode,
+  CursorMoveMode,
   FlashMode,
   ShapeDivisions,
   ShapeMode,
@@ -39,6 +41,9 @@ import CommitOutlinedIcon from '@mui/icons-material/CommitOutlined'
 import AnimationOutlinedIcon from '@mui/icons-material/AnimationOutlined'
 import HdrStrongOutlinedIcon from '@mui/icons-material/HdrStrongOutlined'
 import CircleIcon from '@mui/icons-material/Circle'
+import MdiSineWave from '@mdi/svg/svg/sine-wave.svg?react'
+import HorizontalRuleIcon from '@mui/icons-material/HorizontalRule'
+import RadarOutlinedIcon from '@mui/icons-material/RadarOutlined';
 
 const marks = easingMasses.map((m) => ({ value: m }))
 const minMass = Math.min(...easingMasses)
@@ -213,32 +218,37 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
 
             <Box>
               <InputLabel htmlFor="cursor-mass-input" sx={{ marginBottom: 1 }}>
-                Mode de curseur
+                Mouvement
               </InputLabel>
 
               <ToggleButtonGroup
-                value={displaySettings.cursorMode}
+                value={displaySettings.cursorMoveMode}
                 exclusive
-                onChange={(_event, value: CursorMode) => {
+                onChange={(_event, value: CursorMoveMode) => {
                   if (value == null) {
                     return
                   }
                   setDisplaySettings((prevState) => ({
                     ...prevState,
-                    cursorMode: value,
+                    cursorMoveMode: value,
                   }))
                 }}
                 fullWidth
                 size="small"
               >
-                <ToggleButton value={'off'}>Off</ToggleButton>
                 <ToggleButton value={'eased'}>
-                  <AnimationOutlinedIcon sx={{ mr: 1 }} fontSize="small" />{' '}
-                  Inertie
+                  <SvgIcon
+                    sx={{ mr: 1 }}
+                    fontSize="small"
+                    inheritViewBox
+                    component={MdiSineWave}
+                  />
+                  Inertiel
                 </ToggleButton>
+
                 <ToggleButton value={'linear'}>
-                  <CommitOutlinedIcon sx={{ mr: 1 }} fontSize="small" />{' '}
-                  Subdivisions
+                  <HorizontalRuleIcon sx={{ mr: 1 }} fontSize="small" />{' '}
+                  Linéaire
                 </ToggleButton>
               </ToggleButtonGroup>
             </Box>
@@ -247,15 +257,15 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
               <InputLabel
                 htmlFor="cursor-mass-input"
                 sx={{ marginBottom: 1 }}
-                disabled={displaySettings.cursorMode !== 'eased'}
+                disabled={displaySettings.cursorMoveMode !== 'eased'}
               >
-                Masse du curseur
+                Inertie
               </InputLabel>
 
               <Slider
                 id="cursor-mass-input"
                 value={displaySettings.cursorMass}
-                disabled={displaySettings.cursorMode !== 'eased'}
+                disabled={displaySettings.cursorMoveMode !== 'eased'}
                 onChange={(_e, value) => {
                   assertIsEasingMass(value)
 
@@ -274,13 +284,44 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
 
             <Box>
               <InputLabel htmlFor="cursor-flash-input" sx={{ marginBottom: 1 }}>
-                Flash
+                Modes de curseur
+              </InputLabel>
+
+              <ToggleButtonGroup
+                value={displaySettings.cursorMode}
+                onChange={(_event, value: CursorMode[]) => {
+                  setDisplaySettings((prevState) => ({
+                    ...prevState,
+                    cursorMode: value,
+                  }))
+                }}
+                fullWidth
+              >
+                <ToggleButton value={'dot'}>
+                  <AnimationOutlinedIcon sx={{ mr: 1 }} fontSize="small" />{' '}
+                  Point
+                </ToggleButton>
+                <ToggleButton value={'line'}>
+                  <RadarOutlinedIcon sx={{ mr: 1 }} fontSize="small" />{' '}
+                  Ligne
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+          </Stack>
+
+          <Stack spacing={2}>
+            <Typography variant="h5" lineHeight={1}>
+              Flash
+            </Typography>
+
+            <Box>
+              <InputLabel htmlFor="cursor-flash-input" sx={{ marginBottom: 1 }}>
+                Modes de flash
               </InputLabel>
 
               <ToggleButtonGroup
                 value={displaySettings.flashMode}
-                exclusive
-                onChange={(_event, value: FlashMode) => {
+                onChange={(_event, value: FlashMode[]) => {
                   setDisplaySettings((prevState) => ({
                     ...prevState,
                     flashMode: value,
@@ -288,7 +329,6 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
                 }}
                 fullWidth
               >
-                <ToggleButton value={'none'}>Off</ToggleButton>
                 <ToggleButton value={'shape'}>
                   {displaySettings.shapeMode === 'circle' ? (
                     <CircleOutlinedIcon sx={{ mr: 1 }} fontSize="small" />

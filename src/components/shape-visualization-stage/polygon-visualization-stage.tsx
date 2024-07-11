@@ -9,6 +9,7 @@ import {
 } from '../../state/metronome'
 import { emptyArray } from '../../util/array'
 import {
+  GeoLine,
   boundPolygon,
   getPolygonSegment,
   getPolygonSegments,
@@ -33,6 +34,7 @@ import {
   useMetronomeTickSprings,
 } from '../../hooks/use-metronome-tick-springs'
 import { memoize } from 'lodash-es'
+import { MetronomeLine } from '../graphics/metronome-line'
 
 const memoizedBoundPolygon = memoize(
   boundPolygon,
@@ -47,6 +49,7 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
   subdivisionDotRadius,
   divisionDotRadius,
   cursorDotRadius,
+  centerDotRadius,
   flashSizeMultiplicator,
   divisionDotFlashRadius,
   subdivisionDotFlashRadius,
@@ -101,6 +104,11 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
   const cursorPoint = useMemo(
     () => pointInSegment(currentSegment, easedProgressInDivision),
     [currentSegment, easedProgressInDivision]
+  )
+
+  const cursorLine = useMemo<GeoLine>(
+    () => [containerCircle.center, cursorPoint],
+    [containerCircle.center, cursorPoint]
   )
 
   const [divisionSprings] = useMetronomeTickSprings(
@@ -218,7 +226,8 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
 
   return (
     <Stage {...stageProps}>
-      {displaySettings.flashMode === 'shape'
+      {/* Polygon main divisions flash */}
+      {displaySettings.flashMode.includes('shape')
         ? polygon.map((point, pointIndex) => {
             const shapePolygonSpring = shapePolygonSprings[pointIndex]
             const shapeSpring = shapeSprings[pointIndex]
@@ -236,7 +245,8 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
           })
         : null}
 
-      {displaySettings.flashMode === 'shape' &&
+      {/* Polygon subdivisions flash */}
+      {displaySettings.flashMode.includes('shape') &&
       displaySettings.shapeSubdivisions === 'subdivisions'
         ? subdivisionsPoints.map((divisionPoints, _divisionIndex) =>
             divisionPoints.map((point, pointIndex) => {
@@ -262,6 +272,7 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
           )
         : null}
 
+      {/* Background polygon */}
       <MetronomePolygon
         polygon={polygon}
         color={mainColor}
@@ -270,13 +281,14 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
         lineOpacity={0.5}
       />
 
+      {/* Main divisions */}
       {displaySettings.shapeSubdivisions !== 'off'
         ? polygon.map((point, pointIndex) => {
             const divisionSpring = divisionSprings[pointIndex]
 
             return (
               <Fragment key={`${point[0]}-${point[1]}`}>
-                {displaySettings.flashMode === 'divisions' ? (
+                {displaySettings.flashMode.includes('divisions') ? (
                   <AnimatedMetronomeDot
                     opacity={divisionSpring.opacity}
                     radius={divisionSpring.radius}
@@ -296,6 +308,7 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
           })
         : null}
 
+      {/* Subdivisions */}
       {displaySettings.shapeSubdivisions === 'subdivisions' && subdivisions > 1
         ? subdivisionsPoints.map((divisionPoints, _divisionIndex) =>
             divisionPoints.map((point, pointIndex) => {
@@ -306,7 +319,7 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
 
               return (
                 <Fragment key={`${point[0]}-${point[1]}`}>
-                  {displaySettings.flashMode === 'divisions' ? (
+                  {displaySettings.flashMode.includes('divisions') ? (
                     <AnimatedMetronomeDot
                       opacity={subdivisionSpring.opacity}
                       radius={subdivisionSpring.radius}
@@ -327,18 +340,41 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
           )
         : null}
 
-      {displaySettings.cursorMode !== 'off' ? (
+      {/* Cursor line */}
+      {displaySettings.cursorMode.includes('line') ? (
+        <>
+          {/* Cursor Line */}
+          <MetronomeLine
+            pointA={cursorLine[0]}
+            pointB={cursorLine[1]}
+            color={cursorColor}
+            lineOpacity={1}
+            lineWidth={lineWidth}
+          />
+
+          {/* Center dot */}
+          <MetronomeDot
+            point={containerCircle.center}
+            color={cursorColor}
+            radius={centerDotRadius}
+            opacity={1}
+          />
+        </>
+      ) : null}
+
+      {/* Cursor dot */}
+      {displaySettings.cursorMode.includes('dot') ? (
         <MotionBlurredMetronomeDot
           point={cursorPoint}
           color={cursorColor}
           radius={cursorDotRadius}
           opacity={1}
           running={running}
-          speedFactor={3}
-          speedTrigger={3}
+          speedFactor={2}
+          speedTrigger={4}
           motionBlur={{
             offset: -2,
-            kernelSize: cursorDotRadius,
+            kernelSize: 5,
           }}
         />
       ) : null}
