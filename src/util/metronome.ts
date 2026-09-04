@@ -154,11 +154,17 @@ export class Metronome {
    * `subdivisionOnlyTick` for the subdivision `progress` just crossed into,
    * if any. Call this once per animation frame, from the same place that
    * reads `progress` for display — see class docs.
+   *
+   * Returns the same `MetronomeProgress` snapshot it used internally, so
+   * that a caller who also needs `progress` this frame (e.g. to position
+   * the cursor) can reuse it instead of triggering a second clock read —
+   * this runs on every animation frame, so avoiding a redundant Tone.js
+   * call (and a redundant object allocation) here is worth it.
    */
-  poll() {
+  poll(): MetronomeProgress {
     if (!this.running) {
       this._lastPolledSubdivisionIndex = null
-      return
+      return this._getProgress()
     }
 
     const progress = this._getProgress()
@@ -169,11 +175,11 @@ export class Metronome {
       // Just (re)started: nothing to compare against yet, and beat 0 was
       // already handled by the previous stop's reset.
       this._lastPolledSubdivisionIndex = subdivisionIndex
-      return
+      return progress
     }
 
     if (subdivisionIndex === this._lastPolledSubdivisionIndex) {
-      return
+      return progress
     }
 
     this._lastPolledSubdivisionIndex = subdivisionIndex
@@ -181,9 +187,13 @@ export class Metronome {
     if (subdivisionIndexInDivision === 0) {
       this._emitter.emit('tick', divisionIndex, progress)
     } else {
+      // `subdivisionIndex` here (and below) is the index *within the
+      // division* (0 = the beat itself, matching what listeners key their
+      // per-subdivision UI off of) — not `progress.subdivisionIndex`, which
+      // is the cumulative index across the whole bar.
       this._emitter.emit(
         'subdivisionOnlyTick',
-        subdivisionIndex,
+        subdivisionIndexInDivision,
         divisionIndex,
         progress
       )
@@ -191,10 +201,12 @@ export class Metronome {
 
     this._emitter.emit(
       'subdivisionTick',
-      subdivisionIndex,
+      subdivisionIndexInDivision,
       divisionIndex,
       progress
     )
+
+    return progress
   }
 
   private _getProgress(forceProgress?: number): MetronomeProgress {

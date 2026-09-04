@@ -130,13 +130,16 @@ export const ShapeCursor = ({
   )
 
   const tick = useCallback(() => {
-    metronome.poll()
+    // `poll()` already reads the current progress (to detect and emit
+    // ticks for the flashes) — reuse it instead of reading the clock
+    // (and allocating another snapshot) a second time this frame.
+    const progress = metronome.poll()
 
     if (!runningRef.current) {
       return
     }
 
-    renderAt(metronome.progress)
+    renderAt(progress)
   }, [metronome, renderAt])
 
   useTick(tick)
