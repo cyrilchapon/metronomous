@@ -74,7 +74,7 @@ const AppRoot = () => {
             marginBottom: 3,
           }}
         >
-          <ControlBar />
+          <ControlBar sx={{ width: 'fit-content' }} />
         </Box>
 
         {/* <Debugger /> */}

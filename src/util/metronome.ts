@@ -10,19 +10,9 @@ export type MetronomeSignature = (typeof metronomeSignatures)[number]
 export const metronomeSubdivisions = [1, 2, 3, 4, 6] as const
 export type MetronomeSubdivision = (typeof metronomeSubdivisions)[number]
 
-export type MetronomeTick = {
-  divisionIndex: number
-  subdivisionIndex: number
-}
-
 export type MetronomeNote = {
   name: string
   velocity: number
-}
-
-export type MetronomeSequenceItem = {
-  note: MetronomeNote
-  tick: MetronomeTick
 }
 
 export type MetronomeProgress = {
@@ -52,44 +42,45 @@ export type MetronomeEvents = {
  * Drives the audio scheduling (via a `Tone.Sequence`) and exposes the
  * transport's current playback position.
  *
- * Two very different consumption patterns are supported on purpose:
+ * Audio playback is scheduled sample-accurately by Tone's `Sequence`, as
+ * before — that part doesn't need any help.
  *
- * - Discrete, per-note events (`tick`, `subdivisionTick`,
- *   `subdivisionOnlyTick`) are dispatched through `Tone.Draw`, which is the
- *   mechanism Tone.js provides specifically to fire a visual callback in
- *   sync with a callback that was scheduled in audio time (it compensates
- *   for output/look-ahead latency). These fire a handful of times per
- *   second at most, so pushing them through an event emitter is cheap.
+ * Everything *visual* (the moving cursor, the tick/subdivision "flash"
+ * events) is derived from a single, synchronous `progress` read of the
+ * transport's clock, meant to be pulled once per animation frame by the
+ * caller (i.e. a `useTick` callback driven by PixiJS' own ticker) rather
+ * than pushed as a 60Hz event:
  *
- * - The continuously changing playback position (used to animate a cursor
- *   every frame) is *not* pushed as an event. It is exposed as a plain,
- *   synchronous `progress` getter that reads directly off the transport's
- *   clock. Callers that need it every frame (i.e. a `useTick` callback
- *   driven by PixiJS' own ticker) should *pull* it each frame instead of
- *   subscribing to a 60Hz event. Routing a continuous per-frame value
- *   through `Tone.Draw` (which itself polls on its own loop) on top of a
- *   `requestAnimationFrame` loop only adds latency/jitter without any
- *   synchronization benefit, since nothing about the polling itself needs
- *   look-ahead compensation.
+ * - It deliberately reads the clock *without* Tone's scheduling
+ *   look-ahead (`context.lookAhead`, 100ms by default): `transport.now()`
+ *   (what `Transport.progress`/`Sequence.progress` use internally) returns
+ *   `context.currentTime + lookAhead` — i.e. where the transport *will
+ *   be* a bit in the future, which is exactly what you want when
+ *   *scheduling* audio, but reading it as "now" for the cursor makes the
+ *   cursor visibly run ahead of what's actually audible. `immediate()`
+ *   (`context.currentTime`, no look-ahead) is the transport's true
+ *   current position.
+ * - `poll()` (called from the same per-frame read as the cursor) detects
+ *   when that position has crossed into a new division/subdivision and
+ *   emits the discrete `tick`/`subdivisionTick`/`subdivisionOnlyTick`
+ *   events from it — instead of scheduling them via `Tone.Draw` (a
+ *   *second*, independent `requestAnimationFrame` loop). That avoids any
+ *   frame-order ambiguity between "the cursor visually reached the dot"
+ *   and "the flash fired" (they're now the same read, the same frame),
+ *   and avoids `Tone.Draw`'s failure mode of silently dropping a callback
+ *   whose 250ms expiration window elapsed (e.g. after the tab was
+ *   throttled/backgrounded).
  */
 export class Metronome {
   static getSequenceEvents = (
     signature: MetronomeSignature,
     subdivisions: MetronomeSubdivision
   ) => {
-    return emptyArray(signature).flatMap<MetronomeSequenceItem>((_v1, beat) =>
-      emptyArray(subdivisions).map<MetronomeSequenceItem>(
-        (_v, subdivision) => ({
-          note: {
-            name: beat === 0 && subdivision === 0 ? 'A2' : 'C2',
-            velocity: subdivision === 0 ? 0.8 : 0.2,
-          },
-          tick: {
-            divisionIndex: beat,
-            subdivisionIndex: subdivision,
-          },
-        })
-      )
+    return emptyArray(signature).flatMap<MetronomeNote>((_v1, beat) =>
+      emptyArray(subdivisions).map<MetronomeNote>((_v, subdivision) => ({
+        name: beat === 0 && subdivision === 0 ? 'A2' : 'C2',
+        velocity: subdivision === 0 ? 0.8 : 0.2,
+      }))
     )
   }
 
@@ -124,7 +115,7 @@ export class Metronome {
     return this._emitter.on(event, callback)
   }
 
-  private _sequence: Tone.Sequence<MetronomeSequenceItem>
+  private _sequence: Tone.Sequence<MetronomeNote>
   get sequence() {
     return this._sequence
   }
@@ -147,15 +138,67 @@ export class Metronome {
   }
 
   /**
-   * Synchronous, allocation-light read of the transport's current position.
-   * Safe (and intended) to call every animation frame.
+   * Synchronous, allocation-light read of the transport's current position
+   * (see class docs for why this deliberately avoids Tone's scheduling
+   * look-ahead). Safe (and intended) to call every animation frame.
    */
   get progress(): MetronomeProgress {
     return this._getProgress()
   }
 
+  /** The last subdivision index `poll()` emitted a tick for, or `null` while stopped/not yet polled since starting. */
+  private _lastPolledSubdivisionIndex: number | null = null
+
+  /**
+   * Advances tick-detection and emits `tick`/`subdivisionTick`/
+   * `subdivisionOnlyTick` for the subdivision `progress` just crossed into,
+   * if any. Call this once per animation frame, from the same place that
+   * reads `progress` for display — see class docs.
+   */
+  poll() {
+    if (!this.running) {
+      this._lastPolledSubdivisionIndex = null
+      return
+    }
+
+    const progress = this._getProgress()
+    const { subdivisionIndex, divisionIndex, subdivisionIndexInDivision } =
+      progress
+
+    if (this._lastPolledSubdivisionIndex === null) {
+      // Just (re)started: nothing to compare against yet, and beat 0 was
+      // already handled by the previous stop's reset.
+      this._lastPolledSubdivisionIndex = subdivisionIndex
+      return
+    }
+
+    if (subdivisionIndex === this._lastPolledSubdivisionIndex) {
+      return
+    }
+
+    this._lastPolledSubdivisionIndex = subdivisionIndex
+
+    if (subdivisionIndexInDivision === 0) {
+      this._emitter.emit('tick', divisionIndex, progress)
+    } else {
+      this._emitter.emit(
+        'subdivisionOnlyTick',
+        subdivisionIndex,
+        divisionIndex,
+        progress
+      )
+    }
+
+    this._emitter.emit(
+      'subdivisionTick',
+      subdivisionIndex,
+      divisionIndex,
+      progress
+    )
+  }
+
   private _getProgress(forceProgress?: number): MetronomeProgress {
-    const progress = forceProgress ?? this._sequence.progress
+    const progress = forceProgress ?? this._immediateProgress()
     const divisionIndex = Math.floor(progress * this._signature)
     const progressInDivision =
       (progress - (1 / this._signature) * divisionIndex) * this._signature
@@ -177,6 +220,18 @@ export class Metronome {
       subdivisionIndex,
       subdivisionIndexInDivision,
     }
+  }
+
+  /**
+   * The sequence always loops over exactly one bar (whatever the
+   * subdivision, `signature * subdivisions` evenly-spaced notes always add
+   * up to `signature` quarter notes), and is always started at transport
+   * tick 0, so its phase is just `transport ticks modulo one bar`.
+   */
+  private _immediateProgress(): number {
+    const ticksPerBar = this.transport.PPQ * this._signature
+    const ticks = this.transport.getTicksAtTime(this.transport.immediate())
+    return (((ticks % ticksPerBar) + ticksPerBar) % ticksPerBar) / ticksPerBar
   }
 
   constructor(
@@ -232,33 +287,12 @@ export class Metronome {
   }
 
   private _createSequence() {
-    return new Tone.Sequence<MetronomeSequenceItem>(
-      (time, { tick, note }) => {
+    return new Tone.Sequence<MetronomeNote>(
+      (time, note) => {
         Metronome.playNote(this.synth)(time, note)
-        Tone.getDraw().schedule(this.handleTick.bind(this, tick), time)
       },
       Metronome.getSequenceEvents(this._signature, this._subdivisions),
       Metronome.getSequenceSubdivision(this._subdivisions)
-    )
-  }
-
-  private handleTick({ divisionIndex, subdivisionIndex }: MetronomeTick) {
-    if (subdivisionIndex === 0) {
-      this._emitter.emit('tick', divisionIndex, this._getProgress())
-    } else {
-      this._emitter.emit(
-        'subdivisionOnlyTick',
-        subdivisionIndex,
-        divisionIndex,
-        this._getProgress()
-      )
-    }
-
-    this._emitter.emit(
-      'subdivisionTick',
-      subdivisionIndex,
-      divisionIndex,
-      this._getProgress()
     )
   }
 
