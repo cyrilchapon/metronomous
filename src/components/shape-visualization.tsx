@@ -1,21 +1,21 @@
 import { Easings } from '@juliendargelos/easings'
-import { Box, BoxProps, useTheme } from '@mui/material'
+import { Box, useTheme } from '@mui/material'
 import { useAtomValue } from 'jotai'
 import { FunctionComponent, useMemo, useRef, useState } from 'react'
 import { useThrottledCallback } from 'use-debounce'
-import useResizeObserver from 'use-resize-observer'
+import { useResizeObserver } from 'use-resize-observer'
 import { displaySettingsAtom } from '../state/display-settings'
 import { getLargestPossibleSquare } from '../util/geometry'
 import { massEasingIn } from '../util/mass-easing'
 import { CircleVisualizationCore } from './shape-visualization-stage/circle-visualization-stage'
 import { PolygonVisualizationCore } from './shape-visualization-stage/polygon-visualization-stage'
 import { ShapeVisualizationType } from './shape-visualization-stage/shape-visualization-stage'
+// Registers the `<pixiContainer>`/`<pixiGraphics>` JSX intrinsics used by
+// every component under `components/graphics` — must run before any of
+// them render.
+import './graphics/pixi-extend'
 
-export type ShapeVisualizationProps = BoxProps<'div'>
-
-export const ShapeVisualization: FunctionComponent<ShapeVisualizationProps> = (
-  props
-) => {
+export const ShapeVisualization: FunctionComponent = () => {
   const boxRef = useRef<HTMLDivElement>(null)
   const [{ width, height }, setBoxSize] = useState<{
     width?: number
@@ -37,21 +37,24 @@ export const ShapeVisualization: FunctionComponent<ShapeVisualizationProps> = (
   })
 
   return (
-    <Box ref={boxRef} display="flex" {...props}>
+    <Box
+      ref={boxRef}
+      sx={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden' }}
+    >
       {width != null && height != null ? (
-        <_ShapeVisualization width={width} height={height - 10} padding={100} />
+        <ShapeVisualizationCanvas width={width} height={height - 10} padding={100} />
       ) : null}
     </Box>
   )
 }
 
-type _ShapeVisualizationProps = {
+type ShapeVisualizationCanvasProps = {
   width: number
   height: number
   padding: number
 }
 
-const _ShapeVisualization: FunctionComponent<_ShapeVisualizationProps> = ({
+const ShapeVisualizationCanvas: FunctionComponent<ShapeVisualizationCanvasProps> = ({
   width,
   height,
   padding,
@@ -117,17 +120,14 @@ const _ShapeVisualization: FunctionComponent<_ShapeVisualizationProps> = ({
       lineWidth={lineWidth}
       mainColor={mainColor}
       cursorColor={cursorColor}
-      // Native Stage props
+      // Native Application props
       width={width}
       height={height}
-      options={{
-        backgroundColor: backColor,
-        backgroundAlpha: 0,
-        antialias: true,
-        autoDensity: true,
-        resolution: window.devicePixelRatio,
-      }}
-      raf={false}
+      backgroundColor={backColor}
+      backgroundAlpha={0}
+      antialias
+      autoDensity
+      resolution={window.devicePixelRatio}
     />
   )
 }

@@ -1,10 +1,10 @@
 import { Box, CssBaseline, GlobalStyles, ThemeProvider } from '@mui/material'
-import Grid from '@mui/material/Unstable_Grid2/Grid2'
 import { Provider as JotaiProvider, useAtom } from 'jotai'
 import { FunctionComponent, PropsWithChildren, useMemo } from 'react'
 import { AppDrawer } from './components/app-drawer'
 import { ControlBar } from './components/control-bar'
-import { Navbar, NavbarOffset } from './components/navbar'
+import { Navbar } from './components/navbar'
+import { NavbarOffset } from './components/navbar-offset'
 import { usePaletteMode } from './hooks/use-actual-color-mode'
 import {
   updateMetronomeBpmEffect,
@@ -22,7 +22,7 @@ const App = () => {
   return (
     <JotaiProvider store={store}>
       <Theme>
-        <_App />
+        <AppRoot />
       </Theme>
     </JotaiProvider>
   )
@@ -42,7 +42,7 @@ const Theme: FunctionComponent<PropsWithChildren> = ({ children }) => {
   )
 }
 
-const _App = () => {
+const AppRoot = () => {
   useAtom(updateMetronomeRunningEffect)
   useAtom(updateMetronomeBpmEffect)
   useAtom(updateMetronomeSignatureEffect)
@@ -52,42 +52,38 @@ const _App = () => {
     <>
       <AppDrawer />
 
-      <Grid container direction={'column'} width="100%" height="100%">
-        <Grid
-          xs
-          // marginBottom={2}
-          component={Box}
-          display="flex"
-          height="100%"
-          overflow={'hidden'}
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          width: '100%',
+          height: '100%',
+        }}
+      >
+        <Box
+          sx={{ display: 'flex', flex: '1 1 auto', height: '100%', overflow: 'hidden' }}
         >
-          <ShapeVisualization
-            height={'100%'}
-            width={'100%'}
-            overflow={'hidden'}
-          />
-        </Grid>
+          <ShapeVisualization />
+        </Box>
 
-        <Grid
-          xs="auto"
-          justifySelf={'flex-end'}
-          marginTop={'auto'}
-          marginBottom={3}
-          container
-          justifyContent={'center'}
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginTop: 'auto',
+            marginBottom: 3,
+          }}
         >
-          <Grid xs={'auto'} component={ControlBar} />
-        </Grid>
+          <ControlBar />
+        </Box>
 
-        {/* <Grid xs="auto" justifySelf={'flex-end'}>
-            <Debugger />
-          </Grid> */}
+        {/* <Debugger /> */}
 
-        <Grid xs={'auto'} justifySelf={'flex-end'}>
+        <Box>
           <Navbar sx={{ top: 'auto', bottom: 0 }} />
           <NavbarOffset />
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
     </>
   )
 }

@@ -6,7 +6,6 @@ import {
   IconButton,
   Toolbar,
   Typography,
-  styled,
   useTheme,
 } from '@mui/material'
 import { useSetAtom } from 'jotai'
@@ -60,5 +59,3 @@ export const Navbar: FunctionComponent<NavbarProps> = (props) => {
     </AppBar>
   )
 }
-
-export const NavbarOffset = styled('div')(({ theme }) => theme.mixins.toolbar)

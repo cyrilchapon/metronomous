@@ -1,38 +1,24 @@
 import { Fragment, useCallback, useMemo } from 'react'
 
-import { Stage } from '@pixi/react'
+import { Application } from '@pixi/react'
 import { useAtomValue } from 'jotai'
 import { displaySettingsAtom } from '../../state/display-settings'
-import {
-  metronome,
-  metronomeProgressAtom,
-  metronomeStateAtom,
-} from '../../state/metronome'
+import { metronome, metronomeStateAtom } from '../../state/metronome'
 import { emptyArray } from '../../util/array'
 import {
-  GeoLine,
+  GeoPoint,
   boundCircle,
   getSquareCircle,
   pointInCircleDivision,
   pointsInCircle,
 } from '../../util/geometry'
+import { MetronomeProgress } from '../../util/metronome'
 import { MetronomeCircle } from '../graphics/metronome-circle'
-import {
-  MetronomeDot,
-  MotionBlurredMetronomeDot,
-} from '../graphics/metronome-dot'
+import { MetronomeDot } from '../graphics/metronome-dot'
 import { ShapeVisualizationType } from './shape-visualization-stage'
-import {
-  AnimatedMetronomeCircle,
-  AnimatedMetronomeDot,
-} from '../graphics/animated'
-import {
-  GetSpringIndex,
-  getTickingCircleSpringProps,
-  getTickingDotSpringProps,
-  useMetronomeTickSprings,
-} from '../../hooks/use-metronome-tick-springs'
-import { MetronomeLine } from '../graphics/metronome-line'
+import { FlashDot } from '../graphics/flash-dot'
+import { FlashCircleShape } from '../graphics/flash-shape'
+import { ShapeCursor } from '../graphics/shape-cursor'
 
 export const CircleVisualizationCore: ShapeVisualizationType = ({
   containerSquare,
@@ -54,9 +40,6 @@ export const CircleVisualizationCore: ShapeVisualizationType = ({
   ...stageProps
 }) => {
   const { running, signature, subdivisions } = useAtomValue(metronomeStateAtom)
-  const { divisionIndex, progressInDivision } = useAtomValue(
-    metronomeProgressAtom
-  )
   const displaySettings = useAtomValue(displaySettingsAtom)
 
   const containerCircle = useMemo(
@@ -91,117 +74,39 @@ export const CircleVisualizationCore: ShapeVisualizationType = ({
     [signature, circle, subdivisions, divisionPoints]
   )
 
-  const cursorPoint = useMemo(
-    () =>
+  // The only per-frame computation left in the render path: turning a
+  // progress snapshot into a point. `ShapeCursor` calls this itself, every
+  // frame, from inside a `useTick` callback — it never runs as part of a
+  // React render.
+  const getPoint = useCallback(
+    (progress: MetronomeProgress): GeoPoint =>
       pointInCircleDivision(
         circle,
         signature,
-        divisionIndex,
-        progressInDivision,
+        progress.divisionIndex,
+        progress.progressInDivision,
         cursorEasing
       ),
-    [circle, signature, divisionIndex, progressInDivision, cursorEasing]
+    [circle, signature, cursorEasing]
   )
-
-  const cursorLine = useMemo<GeoLine>(
-    () => [containerCircle.center, cursorPoint],
-    [containerCircle.center, cursorPoint]
-  )
-
-  const [divisionSprings] = useMetronomeTickSprings(
-    metronome,
-    'tick',
-    useCallback<GetSpringIndex<'tick'>>((divisionIndex) => divisionIndex, []),
-    signature,
-    useCallback(
-      () =>
-        getTickingDotSpringProps({
-          from: { opacity: flashDivisionOpacity, radius: divisionDotRadius },
-          to: { opacity: 0, radius: divisionDotFlashRadius },
-        }),
-      [flashDivisionOpacity, divisionDotRadius, divisionDotFlashRadius]
-    )
-  )
-
-  const [subdivisionSprings] = useMetronomeTickSprings(
-    metronome,
-    'subdivisionOnlyTick',
-    useCallback<GetSpringIndex<'subdivisionOnlyTick'>>(
-      (subdivisionIndex, divisionIndex) =>
-        divisionIndex * subdivisions + subdivisionIndex,
-      [subdivisions]
-    ),
-    subdivisions * signature,
-    useCallback(
-      () =>
-        getTickingDotSpringProps({
-          from: {
-            opacity: flashSubdivisionOpacity,
-            radius: subdivisionDotRadius,
-          },
-          to: { opacity: 0, radius: subdivisionDotFlashRadius },
-        }),
-      [flashSubdivisionOpacity, subdivisionDotRadius, subdivisionDotFlashRadius]
-    )
-  )
-
-  const [shapeSprings] = useMetronomeTickSprings(
-    metronome,
-    'tick',
-    useCallback<GetSpringIndex<'tick'>>((divisionIndex) => divisionIndex, []),
-    signature,
-    useCallback(
-      () =>
-        getTickingCircleSpringProps({
-          from: { opacity: flashShapeOpacity, radius: circle.radius },
-          to: { opacity: 0, radius: circle.radius * flashSizeMultiplicator },
-        }),
-      [flashShapeOpacity, circle, flashSizeMultiplicator]
-    )
-  )
-
-  const [shapeSubdivisionSprings] = useMetronomeTickSprings(
-    metronome,
-    'subdivisionOnlyTick',
-    useCallback<GetSpringIndex<'subdivisionOnlyTick'>>(
-      (divisionIndex) => divisionIndex,
-      []
-    ),
-    subdivisions * signature,
-    useCallback(
-      () =>
-        getTickingCircleSpringProps({
-          from: {
-            opacity: flashShapeSubdivisionOpacity,
-            radius: circle.radius,
-          },
-          to: { opacity: 0, radius: circle.radius * flashSizeMultiplicator },
-        }),
-      [flashShapeSubdivisionOpacity, circle, flashSizeMultiplicator]
-    )
-  )
-
-  console.log(containerCircle.center)
 
   return (
-    <Stage {...stageProps}>
+    <Application {...stageProps}>
       {/* Circle main divisions flashes */}
       {displaySettings.flashMode.includes('shape')
-        ? divisionPoints.map((point, pointIndex) => {
-            const shapeSpring = shapeSprings[pointIndex]
-
-            return (
-              <AnimatedMetronomeCircle
-                key={`${point[0]}-${point[1]}`}
-                center={circle.center}
-                radius={shapeSpring.radius}
-                color={cursorColor}
-                fillOpacity={shapeSpring.opacity}
-                lineWidth={0}
-                lineOpacity={0}
-              />
-            )
-          })
+        ? divisionPoints.map((point, pointIndex) => (
+            <FlashCircleShape
+              key={`${point[0]}-${point[1]}`}
+              center={circle.center}
+              color={cursorColor}
+              fromOpacity={flashShapeOpacity}
+              fromRadius={circle.radius}
+              toRadius={circle.radius * flashSizeMultiplicator}
+              metronome={metronome}
+              event="tick"
+              matches={(divisionIndex) => divisionIndex === pointIndex}
+            />
+          ))
         : null}
 
       {/* Circle subdivisions flashes */}
@@ -212,18 +117,21 @@ export const CircleVisualizationCore: ShapeVisualizationType = ({
               const _subdivisionIndex =
                 _divisionIndex * subdivisions + pointIndex + 1
 
-              const shapeSubdivisionSpring =
-                shapeSubdivisionSprings[_subdivisionIndex]
-
               return (
-                <AnimatedMetronomeCircle
+                <FlashCircleShape
                   key={`${point[0]}-${point[1]}`}
                   center={circle.center}
-                  radius={shapeSubdivisionSpring.radius}
-                  color={cursorColor}
-                  fillOpacity={0}
                   lineWidth={lineWidth}
-                  lineOpacity={shapeSubdivisionSpring.opacity}
+                  color={cursorColor}
+                  fromOpacity={flashShapeSubdivisionOpacity}
+                  fromRadius={circle.radius}
+                  toRadius={circle.radius * flashSizeMultiplicator}
+                  metronome={metronome}
+                  event="subdivisionOnlyTick"
+                  matches={(subdivisionIndex, divisionIndex) =>
+                    divisionIndex * subdivisions + subdivisionIndex ===
+                    _subdivisionIndex
+                  }
                 />
               )
             })
@@ -242,31 +150,31 @@ export const CircleVisualizationCore: ShapeVisualizationType = ({
 
       {/* Main divisions */}
       {displaySettings.shapeSubdivisions !== 'off'
-        ? divisionPoints.map((point, pointIndex) => {
-            const divisionSpring = divisionSprings[pointIndex]
-
-            return (
-              <Fragment key={`${point[0]}-${point[1]}`}>
-                {/* Flashes on main divisions */}
-                {displaySettings.flashMode.includes('divisions') ? (
-                  <AnimatedMetronomeDot
-                    opacity={divisionSpring.opacity}
-                    radius={divisionSpring.radius}
-                    point={point}
-                    color={cursorColor}
-                  />
-                ) : null}
-
-                {/* Main divisions dot */}
-                <MetronomeDot
+        ? divisionPoints.map((point, pointIndex) => (
+            <Fragment key={`${point[0]}-${point[1]}`}>
+              {/* Flashes on main divisions */}
+              {displaySettings.flashMode.includes('divisions') ? (
+                <FlashDot
                   point={point}
-                  color={mainColor}
-                  radius={divisionDotRadius}
-                  opacity={1}
+                  color={cursorColor}
+                  fromOpacity={flashDivisionOpacity}
+                  fromRadius={divisionDotRadius}
+                  toRadius={divisionDotFlashRadius}
+                  metronome={metronome}
+                  event="tick"
+                  matches={(divisionIndex) => divisionIndex === pointIndex}
                 />
-              </Fragment>
-            )
-          })
+              ) : null}
+
+              {/* Main divisions dot */}
+              <MetronomeDot
+                point={point}
+                color={mainColor}
+                radius={divisionDotRadius}
+                opacity={1}
+              />
+            </Fragment>
+          ))
         : null}
 
       {/* Subdivisions */}
@@ -276,17 +184,22 @@ export const CircleVisualizationCore: ShapeVisualizationType = ({
               const _subdivisionIndex =
                 _divisionIndex * subdivisions + pointIndex + 1
 
-              const subdivisionSpring = subdivisionSprings[_subdivisionIndex]
-
               return (
                 <Fragment key={`${point[0]}-${point[1]}`}>
                   {/* Flashes on subdivisions */}
                   {displaySettings.flashMode.includes('divisions') ? (
-                    <AnimatedMetronomeDot
-                      opacity={subdivisionSpring.opacity}
-                      radius={subdivisionSpring.radius}
+                    <FlashDot
                       point={point}
                       color={cursorColor}
+                      fromOpacity={flashSubdivisionOpacity}
+                      fromRadius={subdivisionDotRadius}
+                      toRadius={subdivisionDotFlashRadius}
+                      metronome={metronome}
+                      event="subdivisionOnlyTick"
+                      matches={(subdivisionIndex, divisionIndex) =>
+                        divisionIndex * subdivisions + subdivisionIndex ===
+                        _subdivisionIndex
+                      }
                     />
                   ) : null}
 
@@ -303,44 +216,32 @@ export const CircleVisualizationCore: ShapeVisualizationType = ({
           )
         : null}
 
-      {/* Cursor line */}
+      {/* Center dot, shown together with the cursor line */}
       {displaySettings.cursorMode.includes('line') ? (
-        <>
-          {/* Cursor Line */}
-          <MetronomeLine
-            pointA={cursorLine[0]}
-            pointB={cursorLine[1]}
-            color={cursorColor}
-            lineOpacity={1}
-            lineWidth={lineWidth}
-          />
-
-          {/* Center dot */}
-          <MetronomeDot
-            point={containerCircle.center}
-            color={cursorColor}
-            radius={centerDotRadius}
-            opacity={1}
-          />
-        </>
-      ) : null}
-
-      {/* Cursor dot */}
-      {displaySettings.cursorMode.includes('dot') ? (
-        <MotionBlurredMetronomeDot
-          point={cursorPoint}
+        <MetronomeDot
+          point={containerCircle.center}
           color={cursorColor}
-          radius={cursorDotRadius}
+          radius={centerDotRadius}
           opacity={1}
-          running={running}
-          speedFactor={2}
-          speedTrigger={4}
-          motionBlur={{
-            offset: -2,
-            kernelSize: 5,
-          }}
         />
       ) : null}
-    </Stage>
+
+      {/* Cursor (dot + line), fully imperative/per-frame */}
+      <ShapeCursor
+        metronome={metronome}
+        running={running}
+        getPoint={getPoint}
+        centerPoint={containerCircle.center}
+        showDot={displaySettings.cursorMode.includes('dot')}
+        showLine={displaySettings.cursorMode.includes('line')}
+        color={cursorColor}
+        dotRadius={cursorDotRadius}
+        lineWidth={lineWidth}
+        speedFactor={2}
+        speedTrigger={4}
+        motionBlurOffset={-2}
+        motionBlurKernelSize={5}
+      />
+    </Application>
   )
 }

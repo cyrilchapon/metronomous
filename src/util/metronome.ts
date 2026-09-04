@@ -35,7 +35,6 @@ export type MetronomeProgress = {
 }
 
 export type MetronomeEvents = {
-  progress: (progress: MetronomeProgress) => void
   tick: (divisionIndex: number, progress: MetronomeProgress) => void
   subdivisionTick: (
     subdivisionIndex: number,
@@ -49,6 +48,30 @@ export type MetronomeEvents = {
   ) => void
 }
 
+/**
+ * Drives the audio scheduling (via a `Tone.Sequence`) and exposes the
+ * transport's current playback position.
+ *
+ * Two very different consumption patterns are supported on purpose:
+ *
+ * - Discrete, per-note events (`tick`, `subdivisionTick`,
+ *   `subdivisionOnlyTick`) are dispatched through `Tone.Draw`, which is the
+ *   mechanism Tone.js provides specifically to fire a visual callback in
+ *   sync with a callback that was scheduled in audio time (it compensates
+ *   for output/look-ahead latency). These fire a handful of times per
+ *   second at most, so pushing them through an event emitter is cheap.
+ *
+ * - The continuously changing playback position (used to animate a cursor
+ *   every frame) is *not* pushed as an event. It is exposed as a plain,
+ *   synchronous `progress` getter that reads directly off the transport's
+ *   clock. Callers that need it every frame (i.e. a `useTick` callback
+ *   driven by PixiJS' own ticker) should *pull* it each frame instead of
+ *   subscribing to a 60Hz event. Routing a continuous per-frame value
+ *   through `Tone.Draw` (which itself polls on its own loop) on top of a
+ *   `requestAnimationFrame` loop only adds latency/jitter without any
+ *   synchronization benefit, since nothing about the polling itself needs
+ *   look-ahead compensation.
+ */
 export class Metronome {
   static getSequenceEvents = (
     signature: MetronomeSignature,
@@ -106,8 +129,6 @@ export class Metronome {
     return this._sequence
   }
 
-  private metronomeTickerId: number | null = null
-
   private _signature: MetronomeSignature
   get signature() {
     return this._signature
@@ -122,7 +143,15 @@ export class Metronome {
   }
 
   get running() {
-    return this.transport.state === 'started' && this.metronomeTickerId != null
+    return this.transport.state === 'started'
+  }
+
+  /**
+   * Synchronous, allocation-light read of the transport's current position.
+   * Safe (and intended) to call every animation frame.
+   */
+  get progress(): MetronomeProgress {
+    return this._getProgress()
   }
 
   private _getProgress(forceProgress?: number): MetronomeProgress {
@@ -150,10 +179,6 @@ export class Metronome {
     }
   }
 
-  get progress(): MetronomeProgress {
-    return this._getProgress()
-  }
-
   constructor(
     transport: TransportClass,
     initialTimeSignature: MetronomeSignature,
@@ -170,14 +195,7 @@ export class Metronome {
     this.transport = transport
     this.transport.timeSignature = this._signature
 
-    this._sequence = new Tone.Sequence<MetronomeSequenceItem>(
-      (time, { tick, note }) => {
-        Metronome.playNote(this.synth)(time, note)
-        Tone.getDraw().schedule(this.handleTick.bind(this, tick), time)
-      },
-      Metronome.getSequenceEvents(this._signature, this._subdivisions),
-      Metronome.getSequenceSubdivision(this._subdivisions)
-    )
+    this._sequence = this._createSequence()
     this._sequence.start(0)
   }
 
@@ -205,42 +223,23 @@ export class Metronome {
     if (this.transport.state !== 'started') {
       this.transport.start()
     } // else leave it running
-
-    if (this.metronomeTickerId == null) {
-      this.metronomeTickerId = Metronome.requestDrawFrame(this.transport, this.tick.bind(this))
-    } // else leave it running
   }
 
   stop() {
     if (this.transport.state !== 'stopped') {
-      this.sendProgress(0)
       this.transport.stop()
-    } // else leave it running
-
-    if (this.metronomeTickerId != null) {
-      Metronome.cancelDrawFrame(this.transport, this.metronomeTickerId)
-      this.metronomeTickerId = null
     } // else leave it stopped
   }
 
-  tick() {
-    this.sendProgress()
-    this.metronomeTickerId = Metronome.requestDrawFrame(this.transport, this.tick.bind(this))
-  }
-
-  static requestDrawFrame(transport: TransportClass, callback: () => void) {
-    return requestAnimationFrame(() => {
-      Tone.getDraw().schedule(callback, transport.immediate())
-    })
-  }
-
-  static cancelDrawFrame(transport: TransportClass, id: number) {
-    transport.clear(id)
-  }
-
-  private sendProgress(forceProgress?: number) {
-    const progress = this._getProgress(forceProgress)
-    this._emitter.emit('progress', progress)
+  private _createSequence() {
+    return new Tone.Sequence<MetronomeSequenceItem>(
+      (time, { tick, note }) => {
+        Metronome.playNote(this.synth)(time, note)
+        Tone.getDraw().schedule(this.handleTick.bind(this, tick), time)
+      },
+      Metronome.getSequenceEvents(this._signature, this._subdivisions),
+      Metronome.getSequenceSubdivision(this._subdivisions)
+    )
   }
 
   private handleTick({ divisionIndex, subdivisionIndex }: MetronomeTick) {
@@ -265,14 +264,7 @@ export class Metronome {
 
   private _rebuildSequence() {
     this._sequence.dispose()
-    this._sequence = new Tone.Sequence<MetronomeSequenceItem>(
-      (time, { tick, note }) => {
-        Metronome.playNote(this.synth)(time, note)
-        Tone.getDraw().schedule(this.handleTick.bind(this, tick), time)
-      },
-      Metronome.getSequenceEvents(this._signature, this._subdivisions),
-      Metronome.getSequenceSubdivision(this._subdivisions)
-    )
+    this._sequence = this._createSequence()
 
     this._sequence.start(
       this.transport.state === 'started' ? this.transport.progress : 0

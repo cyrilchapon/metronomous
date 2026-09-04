@@ -74,16 +74,18 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
       {...props}
     >
       <Box
-        width={[300, 400, 500]}
-        height={'100%'}
-        paddingX={[4, 5, 8]}
-        paddingY={4}
-        display={'flex'}
-        flexDirection={'row'}
+        sx={{
+          width: [300, 400, 500],
+          height: '100%',
+          paddingX: [4, 5, 8],
+          paddingY: 4,
+          display: 'flex',
+          flexDirection: 'row',
+        }}
       >
-        <Stack flex={1} spacing={4}>
+        <Stack sx={{ flex: 1 }} spacing={4}>
           <Stack spacing={2}>
-            <Typography variant="h5" lineHeight={1}>
+            <Typography variant="h5" sx={{ lineHeight: 1 }}>
               Métronome
             </Typography>
             <Box>
@@ -139,7 +141,7 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
           <Divider />
 
           <Stack spacing={2}>
-            <Typography variant="h5" lineHeight={1}>
+            <Typography variant="h5" sx={{ lineHeight: 1 }}>
               Fond
             </Typography>
 
@@ -212,7 +214,7 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
           <Divider />
 
           <Stack spacing={2}>
-            <Typography variant="h5" lineHeight={1}>
+            <Typography variant="h5" sx={{ lineHeight: 1 }}>
               Curseur
             </Typography>
 
@@ -310,7 +312,7 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
           </Stack>
 
           <Stack spacing={2}>
-            <Typography variant="h5" lineHeight={1}>
+            <Typography variant="h5" sx={{ lineHeight: 1 }}>
               Flash
             </Typography>
 

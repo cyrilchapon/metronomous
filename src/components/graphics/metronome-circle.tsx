@@ -1,10 +1,12 @@
-import { ColorSource } from 'pixi.js'
-import { ISmoothGraphics, SmoothDraw, SmoothGraphics } from './smooth-graphics'
-import { FunctionComponent, Ref, forwardRef, memo, useCallback } from 'react'
+import { ColorSource, Graphics } from 'pixi.js'
+import { PixiElements } from '@pixi/react'
 import { GeoPoint } from '../../util/geometry'
-import { SmoothGraphics as PixiSmoothGraphics } from '@pixi/graphics-smooth'
+import { FunctionComponent, memo, useCallback } from 'react'
 
-export type _MetronomeCircleProps = {
+export type MetronomeCircleProps = Omit<
+  PixiElements['pixiGraphics'],
+  'draw'
+> & {
   center: GeoPoint
   radius: number
   color: ColorSource
@@ -13,42 +15,31 @@ export type _MetronomeCircleProps = {
   lineOpacity: number
 }
 
-export type MetronomeCircleProps = Omit<ISmoothGraphics, 'ref' | 'draw'> &
-  _MetronomeCircleProps
-
-const _MetronomeCircle: FunctionComponent<MetronomeCircleProps> = forwardRef<
-  PixiSmoothGraphics,
-  MetronomeCircleProps
->(function __MetronomeCircle(
-  {
-    center: [centerX, centerY],
-    radius,
-    color,
-    fillOpacity,
-    lineWidth,
-    lineOpacity,
-    ...graphicsProps
-  },
-  ref
-) {
-  const redraw = useCallback<SmoothDraw>(
-    (g) => {
+const MetronomeCircleImpl: FunctionComponent<MetronomeCircleProps> = ({
+  center: [centerX, centerY],
+  radius,
+  color,
+  fillOpacity,
+  lineWidth,
+  lineOpacity,
+  ...graphicsProps
+}) => {
+  const draw = useCallback(
+    (g: Graphics) => {
       g.clear()
-      g.beginFill(color, fillOpacity)
-      g.lineStyle(lineWidth, color, lineOpacity)
-      g.drawCircle(centerX, centerY, radius)
-      g.endFill()
+      g.circle(centerX, centerY, radius)
+
+      if (fillOpacity > 0) {
+        g.fill({ color, alpha: fillOpacity })
+      }
+      if (lineWidth > 0 && lineOpacity > 0) {
+        g.stroke({ width: lineWidth, color, alpha: lineOpacity })
+      }
     },
     [centerX, centerY, radius, color, fillOpacity, lineWidth, lineOpacity]
   )
 
-  return (
-    <SmoothGraphics
-      draw={redraw}
-      ref={ref as Ref<PixiSmoothGraphics>}
-      {...graphicsProps}
-    />
-  )
-})
+  return <pixiGraphics draw={draw} {...graphicsProps} />
+}
 
-export const MetronomeCircle = memo(_MetronomeCircle)
+export const MetronomeCircle = memo(MetronomeCircleImpl)
