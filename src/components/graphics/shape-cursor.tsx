@@ -68,6 +68,12 @@ export const ShapeCursor = ({
   const lineWidthRef = useRef(lineWidth)
   lineWidthRef.current = lineWidth
 
+  // The previous frame's point, used only to derive the motion-blur
+  // velocity. `null` means "don't blur the next frame" — used to prevent a
+  // *legitimate* discontinuity (the cursor being snapped/reset rather than
+  // having actually travelled there) from being read as an enormous
+  // instantaneous speed and producing a burst of ghost dots (the motion
+  // blur kernel smearing a huge fake velocity across a few taps).
   const lastPointRef = useRef<GeoPoint | null>(null)
 
   const motionBlurFilter = useMemo(() => {
@@ -83,7 +89,7 @@ export const ShapeCursor = ({
   }, [motionBlurKernelSize, motionBlurOffset])
 
   const renderAt = useCallback(
-    (progress: MetronomeProgress) => {
+    (progress: MetronomeProgress, { snap = false }: { snap?: boolean } = {}) => {
       const point = getPointRef.current(progress)
       const [x, y] = point
 
@@ -91,7 +97,7 @@ export const ShapeCursor = ({
       if (dot) {
         dot.position.set(x, y)
 
-        const last = lastPointRef.current
+        const last = snap ? null : lastPointRef.current
         const vx = last ? (x - last[0]) * speedFactor : 0
         const vy = last ? (y - last[1]) * speedFactor : 0
         const moving =
@@ -124,6 +130,8 @@ export const ShapeCursor = ({
   )
 
   const tick = useCallback(() => {
+    metronome.poll()
+
     if (!runningRef.current) {
       return
     }
@@ -137,9 +145,19 @@ export const ShapeCursor = ({
   // metronome stops — otherwise it would freeze wherever it last was.
   useEffect(() => {
     if (!running) {
-      renderAt(metronome.progress)
+      renderAt(metronome.progress, { snap: true })
     }
   }, [running, metronome, renderAt])
+
+  // The geometry (`getPoint`) can change while running too — switching
+  // circle/polygon mode, or the signature — which is just as much of a
+  // discontinuity as a stop. Forget the last point so the *next* frame
+  // doesn't read it as a huge instantaneous jump (see `lastPointRef`); the
+  // cursor then just resumes moving normally from wherever the new
+  // geometry places it, with no fake velocity spike.
+  useEffect(() => {
+    lastPointRef.current = null
+  }, [getPoint])
 
   const drawDot = useCallback(
     (g: Graphics) => {
