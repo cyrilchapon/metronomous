@@ -2,45 +2,26 @@ import { Fragment, useCallback, useMemo } from 'react'
 
 import { useAtomValue } from 'jotai'
 import { displaySettingsAtom } from '../../state/display-settings'
-import {
-  metronome,
-  metronomeProgressAtom,
-  metronomeStateAtom,
-} from '../../state/metronome'
+import { metronome, metronomeStateAtom } from '../../state/metronome'
 import { emptyArray } from '../../util/array'
 import {
-  GeoLine,
+  GeoPoint,
   boundPolygon,
   getPolygonSegment,
   getPolygonSegments,
   getSquareCircle,
   pointInSegment,
 } from '../../util/geometry'
-import {
-  MetronomeDot,
-  MotionBlurredMetronomeDot,
-} from '../graphics/metronome-dot'
+import { MetronomeProgress } from '../../util/metronome'
+import { MetronomeDot } from '../graphics/metronome-dot'
 import { MetronomePolygon } from '../graphics/metronome-polygon'
 import { ShapeVisualizationType } from './shape-visualization-stage'
-import { Stage } from '@pixi/react'
-import {
-  AnimatedMetronomeDot,
-  AnimatedMetronomePolygon,
-} from '../graphics/animated'
-import {
-  GetSpringIndex,
-  getTickingCircleSpringProps,
-  getTickingDotSpringProps,
-  useMetronomeTickSprings,
-} from '../../hooks/use-metronome-tick-springs'
-import { memoize } from 'lodash-es'
-import { MetronomeLine } from '../graphics/metronome-line'
+import { Application } from '@pixi/react'
+import { FlashDot } from '../graphics/flash-dot'
+import { FlashPolygonShape } from '../graphics/flash-shape'
+import { ShapeCursor } from '../graphics/shape-cursor'
 
-const memoizedBoundPolygon = memoize(
-  boundPolygon,
-  (circle, sides, paddedRatio) =>
-    `r${circle.radius}c${circle.center[0]}.${circle.center[1]}s${sides}x${paddedRatio}`
-)
+const PADDED_RATIO = 0.85
 
 export const PolygonVisualizationCore: ShapeVisualizationType = ({
   containerSquare,
@@ -62,9 +43,6 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
   ...stageProps
 }) => {
   const { running, signature, subdivisions } = useAtomValue(metronomeStateAtom)
-  const { divisionIndex, progressInDivision } = useAtomValue(
-    metronomeProgressAtom
-  )
   const displaySettings = useAtomValue(displaySettingsAtom)
 
   const containerCircle = useMemo(
@@ -73,7 +51,7 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
   )
 
   const polygon = useMemo(
-    () => boundPolygon(containerCircle, signature, 0.85),
+    () => boundPolygon(containerCircle, signature, PADDED_RATIO),
     [containerCircle, signature]
   )
 
@@ -91,158 +69,37 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
     [polygonSegments, subdivisions]
   )
 
-  const currentSegment = useMemo(
-    () => getPolygonSegment(polygon, divisionIndex),
-    [polygon, divisionIndex]
-  )
-
-  const easedProgressInDivision = useMemo(
-    () => cursorEasing(progressInDivision),
-    [cursorEasing, progressInDivision]
-  )
-
-  const cursorPoint = useMemo(
-    () => pointInSegment(currentSegment, easedProgressInDivision),
-    [currentSegment, easedProgressInDivision]
-  )
-
-  const cursorLine = useMemo<GeoLine>(
-    () => [containerCircle.center, cursorPoint],
-    [containerCircle.center, cursorPoint]
-  )
-
-  const [divisionSprings] = useMetronomeTickSprings(
-    metronome,
-    'tick',
-    useCallback<GetSpringIndex<'tick'>>((divisionIndex) => divisionIndex, []),
-    signature,
-    useCallback(
-      () =>
-        getTickingDotSpringProps({
-          from: { opacity: flashDivisionOpacity, radius: divisionDotRadius },
-          to: { opacity: 0, radius: divisionDotFlashRadius },
-        }),
-      [flashDivisionOpacity, divisionDotRadius, divisionDotFlashRadius]
-    )
-  )
-
-  const [subdivisionSprings] = useMetronomeTickSprings(
-    metronome,
-    'subdivisionOnlyTick',
-    useCallback<GetSpringIndex<'subdivisionOnlyTick'>>(
-      (subdivisionIndex, divisionIndex) =>
-        divisionIndex * subdivisions + subdivisionIndex,
-      [subdivisions]
-    ),
-    subdivisions * signature,
-    useCallback(
-      () =>
-        getTickingDotSpringProps({
-          from: {
-            opacity: flashSubdivisionOpacity,
-            radius: subdivisionDotRadius,
-          },
-          to: { opacity: 0, radius: subdivisionDotFlashRadius },
-        }),
-      [flashSubdivisionOpacity, subdivisionDotRadius, subdivisionDotFlashRadius]
-    )
-  )
-
-  const [shapeSprings] = useMetronomeTickSprings(
-    metronome,
-    'tick',
-    useCallback<GetSpringIndex<'tick'>>((divisionIndex) => divisionIndex, []),
-    signature,
-    useCallback(
-      () =>
-        getTickingCircleSpringProps({
-          from: { opacity: flashShapeOpacity, radius: containerCircle.radius },
-          to: {
-            opacity: 0,
-            radius: containerCircle.radius * flashSizeMultiplicator,
-          },
-        }),
-      [flashShapeOpacity, containerCircle, flashSizeMultiplicator]
-    )
-  )
-
-  const [shapeSubdivisionSprings] = useMetronomeTickSprings(
-    metronome,
-    'subdivisionOnlyTick',
-    useCallback<GetSpringIndex<'subdivisionOnlyTick'>>(
-      (divisionIndex) => divisionIndex,
-      []
-    ),
-    subdivisions * signature,
-    useCallback(
-      () =>
-        getTickingCircleSpringProps({
-          from: {
-            opacity: flashShapeSubdivisionOpacity,
-            radius: containerCircle.radius,
-          },
-          to: {
-            opacity: 0,
-            radius: containerCircle.radius * flashSizeMultiplicator,
-          },
-        }),
-      [flashShapeSubdivisionOpacity, containerCircle, flashSizeMultiplicator]
-    )
-  )
-
-  const shapePolygonSprings = useMemo(
-    () =>
-      shapeSprings.map((shapeSpring) =>
-        shapeSpring.radius.to((r) =>
-          memoizedBoundPolygon(
-            {
-              center: containerCircle.center,
-              radius: r,
-            },
-            signature,
-            0.85
-          )
-        )
-      ),
-    [shapeSprings, signature, containerCircle.center]
-  )
-
-  const shapeSubdivisionsPolygonSprings = useMemo(
-    () =>
-      shapeSubdivisionSprings.map((shapeSubdivisionSpring) =>
-        shapeSubdivisionSpring.radius.to((r) =>
-          memoizedBoundPolygon(
-            {
-              center: containerCircle.center,
-              radius: r,
-            },
-            signature,
-            0.85
-          )
-        )
-      ),
-    [shapeSubdivisionSprings, signature, containerCircle.center]
+  // The only per-frame computation left in the render path: turning a
+  // progress snapshot into a point. `ShapeCursor` calls this itself, every
+  // frame, from inside a `useTick` callback — it never runs as part of a
+  // React render.
+  const getPoint = useCallback(
+    (progress: MetronomeProgress): GeoPoint => {
+      const segment = getPolygonSegment(polygon, progress.divisionIndex)
+      return pointInSegment(segment, cursorEasing(progress.progressInDivision))
+    },
+    [polygon, cursorEasing]
   )
 
   return (
-    <Stage {...stageProps}>
+    <Application {...stageProps}>
       {/* Polygon main divisions flash */}
       {displaySettings.flashMode.includes('shape')
-        ? polygon.map((point, pointIndex) => {
-            const shapePolygonSpring = shapePolygonSprings[pointIndex]
-            const shapeSpring = shapeSprings[pointIndex]
-
-            return (
-              <AnimatedMetronomePolygon
-                key={`${point[0]}-${point[1]}`}
-                polygon={shapePolygonSpring.get()}
-                color={cursorColor}
-                fillOpacity={shapeSpring.opacity}
-                lineWidth={0}
-                lineOpacity={0}
-              />
-            )
-          })
+        ? polygon.map((point, pointIndex) => (
+            <FlashPolygonShape
+              key={`${point[0]}-${point[1]}`}
+              center={containerCircle.center}
+              sides={signature}
+              paddedRatio={PADDED_RATIO}
+              color={cursorColor}
+              fromOpacity={flashShapeOpacity}
+              fromRadius={containerCircle.radius}
+              toRadius={containerCircle.radius * flashSizeMultiplicator}
+              metronome={metronome}
+              event="tick"
+              matches={(divisionIndex) => divisionIndex === pointIndex}
+            />
+          ))
         : null}
 
       {/* Polygon subdivisions flash */}
@@ -253,19 +110,23 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
               const _subdivisionIndex =
                 _divisionIndex * subdivisions + pointIndex + 1
 
-              const shapeSubdivisionPolygonSpring =
-                shapeSubdivisionsPolygonSprings[_subdivisionIndex]
-              const shapeSubdivisionSpring =
-                shapeSubdivisionSprings[_subdivisionIndex]
-
               return (
-                <AnimatedMetronomePolygon
+                <FlashPolygonShape
                   key={`${point[0]}-${point[1]}`}
-                  polygon={shapeSubdivisionPolygonSpring.get()}
-                  color={cursorColor}
-                  fillOpacity={0}
+                  center={containerCircle.center}
+                  sides={signature}
+                  paddedRatio={PADDED_RATIO}
                   lineWidth={lineWidth}
-                  lineOpacity={shapeSubdivisionSpring.opacity}
+                  color={cursorColor}
+                  fromOpacity={flashShapeSubdivisionOpacity}
+                  fromRadius={containerCircle.radius}
+                  toRadius={containerCircle.radius * flashSizeMultiplicator}
+                  metronome={metronome}
+                  event="subdivisionOnlyTick"
+                  matches={(subdivisionIndex, divisionIndex) =>
+                    divisionIndex * subdivisions + subdivisionIndex ===
+                    _subdivisionIndex
+                  }
                 />
               )
             })
@@ -283,29 +144,29 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
 
       {/* Main divisions */}
       {displaySettings.shapeSubdivisions !== 'off'
-        ? polygon.map((point, pointIndex) => {
-            const divisionSpring = divisionSprings[pointIndex]
-
-            return (
-              <Fragment key={`${point[0]}-${point[1]}`}>
-                {displaySettings.flashMode.includes('divisions') ? (
-                  <AnimatedMetronomeDot
-                    opacity={divisionSpring.opacity}
-                    radius={divisionSpring.radius}
-                    point={point}
-                    color={cursorColor}
-                  />
-                ) : null}
-
-                <MetronomeDot
+        ? polygon.map((point, pointIndex) => (
+            <Fragment key={`${point[0]}-${point[1]}`}>
+              {displaySettings.flashMode.includes('divisions') ? (
+                <FlashDot
                   point={point}
-                  color={mainColor}
-                  radius={divisionDotRadius}
-                  opacity={1}
+                  color={cursorColor}
+                  fromOpacity={flashDivisionOpacity}
+                  fromRadius={divisionDotRadius}
+                  toRadius={divisionDotFlashRadius}
+                  metronome={metronome}
+                  event="tick"
+                  matches={(divisionIndex) => divisionIndex === pointIndex}
                 />
-              </Fragment>
-            )
-          })
+              ) : null}
+
+              <MetronomeDot
+                point={point}
+                color={mainColor}
+                radius={divisionDotRadius}
+                opacity={1}
+              />
+            </Fragment>
+          ))
         : null}
 
       {/* Subdivisions */}
@@ -315,16 +176,21 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
               const _subdivisionIndex =
                 _divisionIndex * subdivisions + pointIndex + 1
 
-              const subdivisionSpring = subdivisionSprings[_subdivisionIndex]
-
               return (
                 <Fragment key={`${point[0]}-${point[1]}`}>
                   {displaySettings.flashMode.includes('divisions') ? (
-                    <AnimatedMetronomeDot
-                      opacity={subdivisionSpring.opacity}
-                      radius={subdivisionSpring.radius}
+                    <FlashDot
                       point={point}
                       color={cursorColor}
+                      fromOpacity={flashSubdivisionOpacity}
+                      fromRadius={subdivisionDotRadius}
+                      toRadius={subdivisionDotFlashRadius}
+                      metronome={metronome}
+                      event="subdivisionOnlyTick"
+                      matches={(subdivisionIndex, divisionIndex) =>
+                        divisionIndex * subdivisions + subdivisionIndex ===
+                        _subdivisionIndex
+                      }
                     />
                   ) : null}
 
@@ -340,44 +206,32 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
           )
         : null}
 
-      {/* Cursor line */}
+      {/* Center dot, shown together with the cursor line */}
       {displaySettings.cursorMode.includes('line') ? (
-        <>
-          {/* Cursor Line */}
-          <MetronomeLine
-            pointA={cursorLine[0]}
-            pointB={cursorLine[1]}
-            color={cursorColor}
-            lineOpacity={1}
-            lineWidth={lineWidth}
-          />
-
-          {/* Center dot */}
-          <MetronomeDot
-            point={containerCircle.center}
-            color={cursorColor}
-            radius={centerDotRadius}
-            opacity={1}
-          />
-        </>
-      ) : null}
-
-      {/* Cursor dot */}
-      {displaySettings.cursorMode.includes('dot') ? (
-        <MotionBlurredMetronomeDot
-          point={cursorPoint}
+        <MetronomeDot
+          point={containerCircle.center}
           color={cursorColor}
-          radius={cursorDotRadius}
+          radius={centerDotRadius}
           opacity={1}
-          running={running}
-          speedFactor={2}
-          speedTrigger={4}
-          motionBlur={{
-            offset: -2,
-            kernelSize: 5,
-          }}
         />
       ) : null}
-    </Stage>
+
+      {/* Cursor (dot + line), fully imperative/per-frame */}
+      <ShapeCursor
+        metronome={metronome}
+        running={running}
+        getPoint={getPoint}
+        centerPoint={containerCircle.center}
+        showDot={displaySettings.cursorMode.includes('dot')}
+        showLine={displaySettings.cursorMode.includes('line')}
+        color={cursorColor}
+        dotRadius={cursorDotRadius}
+        lineWidth={lineWidth}
+        speedFactor={2}
+        speedTrigger={4}
+        motionBlurOffset={-2}
+        motionBlurKernelSize={5}
+      />
+    </Application>
   )
 }

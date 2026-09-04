@@ -1,10 +1,8 @@
 import { atom } from 'jotai'
 import { atomEffect } from 'jotai-effect'
 import { focusAtom } from 'jotai-optics'
-import { store } from './store'
 import {
   Metronome,
-  MetronomeProgress,
   MetronomeSignature,
   MetronomeSubdivision,
 } from '../util/metronome'
@@ -15,7 +13,6 @@ export type MetronomeState = {
   signature: MetronomeSignature
   subdivisions: MetronomeSubdivision
   running: boolean
-  progress: MetronomeProgress
 }
 
 const initialMetronomeState: MetronomeState = {
@@ -23,14 +20,6 @@ const initialMetronomeState: MetronomeState = {
   signature: 4,
   subdivisions: 2,
   running: false,
-  progress: {
-    progress: 0,
-    divisionIndex: 0,
-    progressInDivision: 0,
-    subdivisionIndex: 0,
-    progressInSubdivision: 0,
-    subdivisionIndexInDivision: 0
-  },
 }
 
 const transport = Tone.getTransport()
@@ -48,31 +37,12 @@ export const metronomeRunningAtom = focusAtom(metronomeStateAtom, (optic) =>
 export const metronomeBpmAtom = focusAtom(metronomeStateAtom, (optic) =>
   optic.prop('bpm')
 )
-export const metronomeProgressAtom = focusAtom(metronomeStateAtom, (optic) =>
-  optic.prop('progress')
-)
 export const metronomeSignatureAtom = focusAtom(metronomeStateAtom, (optic) =>
   optic.prop('signature')
 )
 export const metronomeSubdivisionAtom = focusAtom(metronomeStateAtom, (optic) =>
   optic.prop('subdivisions')
 )
-
-metronome.on('progress', (metronomeProgress) => {
-  store.set(metronomeProgressAtom, metronomeProgress)
-})
-
-// metronome.on('tick', () => {
-//   console.log('tick')
-// })
-
-// metronome.on('subdivisionTick', () => {
-//   console.log('subdivisionTick')
-// })
-
-// metronome.on('subdivisionOnlyTick', () => {
-//   console.log('subdivisionOnlyTick')
-// })
 
 export const updateMetronomeBpmEffect = atomEffect((get) => {
   const bpm = get(metronomeBpmAtom)

@@ -1,17 +1,9 @@
-import { ColorSource } from 'pixi.js'
+import { ColorSource, Graphics } from 'pixi.js'
+import { PixiElements } from '@pixi/react'
 import { GeoPolygon } from '../../util/geometry'
-import { ISmoothGraphics, SmoothDraw, SmoothGraphics } from './smooth-graphics'
-import {
-  FunctionComponent,
-  Ref,
-  forwardRef,
-  memo,
-  useCallback,
-  useMemo,
-} from 'react'
-import { SmoothGraphics as PixiSmoothGraphics } from '@pixi/graphics-smooth'
+import { FunctionComponent, memo, useCallback } from 'react'
 
-type _MetronomePolygonProps = {
+export type MetronomePolygonProps = Omit<PixiElements['pixiGraphics'], 'draw'> & {
   polygon: GeoPolygon
   color: ColorSource
   fillOpacity: number
@@ -19,37 +11,30 @@ type _MetronomePolygonProps = {
   lineOpacity: number
 }
 
-export type MetronomePolygonProps = Omit<ISmoothGraphics, 'ref' | 'draw'> &
-  _MetronomePolygonProps
-
-const _MetronomePolygon: FunctionComponent<MetronomePolygonProps> = forwardRef<
-  PixiSmoothGraphics,
-  MetronomePolygonProps
->(function __MetronomePolygon(
-  { polygon, color, fillOpacity, lineWidth, lineOpacity, ...graphicsProps },
-  ref
-) {
-  const polygonKey = useMemo(() => JSON.stringify(polygon), [polygon])
-
-  const redraw = useCallback<SmoothDraw>(
-    (g) => {
+const MetronomePolygonImpl: FunctionComponent<MetronomePolygonProps> = ({
+  polygon,
+  color,
+  fillOpacity,
+  lineWidth,
+  lineOpacity,
+  ...graphicsProps
+}) => {
+  const draw = useCallback(
+    (g: Graphics) => {
       g.clear()
-      g.beginFill(color, fillOpacity)
-      g.lineStyle(lineWidth, color, lineOpacity)
-      g.drawPolygon([...polygon.flatMap((point) => point)])
-      g.endFill()
+      g.poly(polygon.flatMap((point) => point))
+
+      if (fillOpacity > 0) {
+        g.fill({ color, alpha: fillOpacity })
+      }
+      if (lineWidth > 0 && lineOpacity > 0) {
+        g.stroke({ width: lineWidth, color, alpha: lineOpacity })
+      }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [polygonKey, color, fillOpacity, lineWidth, lineOpacity]
+    [polygon, color, fillOpacity, lineWidth, lineOpacity]
   )
 
-  return (
-    <SmoothGraphics
-      draw={redraw}
-      ref={ref as Ref<PixiSmoothGraphics>}
-      {...graphicsProps}
-    />
-  )
-})
+  return <pixiGraphics draw={draw} {...graphicsProps} />
+}
 
-export const MetronomePolygon = memo(_MetronomePolygon)
+export const MetronomePolygon = memo(MetronomePolygonImpl)

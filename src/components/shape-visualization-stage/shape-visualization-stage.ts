@@ -1,10 +1,10 @@
 import { EasingFunction } from '@juliendargelos/easings'
+import { Application } from '@pixi/react'
 import { ColorSource } from 'pixi.js'
 import { GeoSquare } from '../../util/geometry'
 import { ComponentProps, FunctionComponent } from 'react'
-import { Stage } from '@pixi/react'
 
-export type StageProps = ComponentProps<typeof Stage>
+export type StageProps = ComponentProps<typeof Application>
 type _ShapeVisualizationShapeProps = {
   containerSquare: GeoSquare
   cursorEasing: EasingFunction
