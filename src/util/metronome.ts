@@ -297,7 +297,17 @@ export class Metronome {
 
   stop() {
     if (this.transport.state !== 'stopped') {
-      this.transport.stop()
+      // `transport.stop()` with no explicit time defaults to
+      // `transport.now()` (`context.currentTime + lookAhead`, ~100ms in
+      // the future) — the right default for scheduling audio reliably,
+      // but it means the transport doesn't actually reach its reset
+      // (stopped, ticks = 0) state until that scheduled instant arrives.
+      // Reading `progress` right after calling this (as the UI does, to
+      // snap the cursor back) would still see the old, pre-stop position
+      // for that whole window, and since nothing re-reads it once
+      // stopped, the cursor stayed frozen there instead of resetting.
+      // `immediate()` (no look-ahead) makes the reset actually immediate.
+      this.transport.stop(this.transport.immediate())
     } // else leave it stopped
   }
 
