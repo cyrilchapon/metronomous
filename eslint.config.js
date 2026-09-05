@@ -51,9 +51,10 @@ export default [
         { allowConstantExport: true },
       ],
 
-      // pixiGraphics' `draw` prop is a @pixi/react convenience prop, not a
-      // DOM attribute — eslint-plugin-react doesn't know about it.
-      'react/no-unknown-property': ['error', { ignore: ['draw'] }],
+      // pixiGraphics' `draw` prop is a @pixi/react convenience prop, and
+      // `filters` a real PixiJS DisplayObject property — neither is a DOM
+      // attribute, so eslint-plugin-react doesn't know about them.
+      'react/no-unknown-property': ['error', { ignore: ['draw', 'filters'] }],
 
       // Personal customization
       '@typescript-eslint/consistent-type-definitions': ['error', 'type'],

@@ -15,6 +15,22 @@ export const maxMetronomeBpm = 400
 export const clampMetronomeBpm = (bpm: number) =>
   Math.min(maxMetronomeBpm, Math.max(minMetronomeBpm, bpm))
 
+/**
+ * Turns a raw, looping [0, 1) bar progress into a division index + the
+ * progress within that division — the one calculation `MetronomeProgress`
+ * is built from, and the one thing callers need to place a point anywhere
+ * along the bar (not just at the current position — e.g. a short span
+ * behind it, for a cursor trail).
+ */
+export const divisionAtProgress = (
+  progress: number,
+  signature: MetronomeSignature
+) => {
+  const divisionIndex = Math.floor(progress * signature)
+  const progressInDivision = (progress - (1 / signature) * divisionIndex) * signature
+  return { divisionIndex, progressInDivision }
+}
+
 export type MetronomeNote = {
   name: string
   velocity: number
@@ -214,9 +230,10 @@ export class Metronome {
 
   private _getProgress(forceProgress?: number): MetronomeProgress {
     const progress = forceProgress ?? this._immediateProgress()
-    const divisionIndex = Math.floor(progress * this._signature)
-    const progressInDivision =
-      (progress - (1 / this._signature) * divisionIndex) * this._signature
+    const { divisionIndex, progressInDivision } = divisionAtProgress(
+      progress,
+      this._signature
+    )
 
     const subdivisionIndexInDivision = Math.floor(
       progressInDivision * this._subdivisions
