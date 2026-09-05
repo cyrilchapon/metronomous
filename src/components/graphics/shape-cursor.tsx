@@ -122,13 +122,21 @@ export const ShapeCursor = ({
   // single persistent filter instance/instruction so redrawing the trail's
   // (short, small) path every frame is the only per-frame cost; the glow
   // itself doesn't need any updating.
+  //
+  // `quality` (shader sample count, "the higher the less performant" per
+  // the filter's own docs) is by far the dominant per-frame cost of the
+  // whole cursor+trail: profiling with it disabled entirely dropped frame
+  // time back down near the no-cursor baseline, while every other part
+  // (trail geometry, motion blur) was in the noise by comparison. 0.05 (half
+  // the filter's own default of 0.1) recovers most of that at a glow small
+  // enough that the difference isn't visible — verified against 0.15.
   const trailGlowFilter = useMemo(
     () =>
       new GlowFilter({
         distance: Math.max(trailWidth * 2, 4),
         outerStrength: 1.5,
         innerStrength: 0,
-        quality: 0.15,
+        quality: 0.05,
         color,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
