@@ -12,7 +12,7 @@ import {
   getSquareCircle,
   pointInSegment,
 } from '../../util/geometry'
-import { MetronomeProgress } from '../../util/metronome'
+import { divisionAtProgress } from '../../util/metronome'
 import { MetronomeDot } from '../graphics/metronome-dot'
 import { MetronomePolygon } from '../graphics/metronome-polygon'
 import { ShapeVisualizationType } from './shape-visualization-stage'
@@ -42,7 +42,7 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
   cursorColor,
   ...stageProps
 }) => {
-  const { running, signature, subdivisions } = useAtomValue(metronomeStateAtom)
+  const { running, bpm, signature, subdivisions } = useAtomValue(metronomeStateAtom)
   const displaySettings = useAtomValue(displaySettingsAtom)
 
   const containerCircle = useMemo(
@@ -69,17 +69,27 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
     [polygonSegments, subdivisions]
   )
 
-  // The only per-frame computation left in the render path: turning a
-  // progress snapshot into a point. `ShapeCursor` calls this itself, every
+  // The only per-frame computation left in the render path: turning a raw
+  // bar progress into a point. `ShapeCursor` calls this itself, every
   // frame, from inside a `useTick` callback — it never runs as part of a
-  // React render.
-  const getPoint = useCallback(
-    (progress: MetronomeProgress): GeoPoint => {
-      const segment = getPolygonSegment(polygon, progress.divisionIndex)
-      return pointInSegment(segment, cursorEasing(progress.progressInDivision))
+  // React render. Takes a raw progress rather than a `MetronomeProgress` so
+  // it can also place points *behind* the current one (the trail), not
+  // just at it — wrapping negative/looping input into [0, 1) itself so
+  // callers don't have to.
+  const getPointAtProgress = useCallback(
+    (rawProgress: number): GeoPoint => {
+      const progress = ((rawProgress % 1) + 1) % 1
+      const { divisionIndex, progressInDivision } = divisionAtProgress(
+        progress,
+        signature
+      )
+      const segment = getPolygonSegment(polygon, divisionIndex)
+      return pointInSegment(segment, cursorEasing(progressInDivision))
     },
-    [polygon, cursorEasing]
+    [polygon, signature, cursorEasing]
   )
+
+  const trailWidth = lineWidth * 1.6
 
   return (
     <Application {...stageProps}>
@@ -216,17 +226,20 @@ export const PolygonVisualizationCore: ShapeVisualizationType = ({
         />
       ) : null}
 
-      {/* Cursor (dot + line), fully imperative/per-frame */}
+      {/* Cursor (dot + line + trail), fully imperative/per-frame */}
       <ShapeCursor
         metronome={metronome}
         running={running}
-        getPoint={getPoint}
+        bpm={bpm}
+        signature={signature}
+        getPointAtProgress={getPointAtProgress}
         centerPoint={containerCircle.center}
         showDot={displaySettings.cursorMode.includes('dot')}
         showLine={displaySettings.cursorMode.includes('line')}
         color={cursorColor}
         dotRadius={cursorDotRadius}
         lineWidth={lineWidth}
+        trailWidth={trailWidth}
         speedFactor={2}
         speedTrigger={4}
         motionBlurOffset={-2}

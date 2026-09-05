@@ -1,5 +1,5 @@
 import { ColorSource, Graphics } from 'pixi.js'
-import { MotionBlurFilter } from 'pixi-filters'
+import { GlowFilter, MotionBlurFilter } from 'pixi-filters'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTick } from '@pixi/react'
 import { GeoPoint } from '../../util/geometry'
@@ -7,17 +7,37 @@ import { Metronome, MetronomeProgress } from '../../util/metronome'
 
 const noop = () => {}
 
+// How long a trail is, in time rather than in distance: at a given tempo
+// this converts straight to a distance (more of the shape's boundary is
+// covered in the same time), which is what makes it "longer at a higher
+// tempo" for free, without tracking speed separately from progress itself.
+const TRAIL_DURATION_MS = 320
+// Cap on how much of a full bar the trail can span, so it doesn't wrap
+// around and overlap itself at very high tempos.
+const TRAIL_MAX_SPAN = 0.22
+const TRAIL_SEGMENTS = 14
+const TRAIL_MAX_ALPHA = 0.85
+
 export type ShapeCursorProps = {
   metronome: Metronome
   running: boolean
-  /** Called every frame (while running) to turn a progress snapshot into a point. Should be cheap and stable in spirit — it's read through a ref, so it can safely close over fresh geometry without re-subscribing the ticker. */
-  getPoint: (progress: MetronomeProgress) => GeoPoint
+  bpm: number
+  signature: number
+  /**
+   * Turns a raw, looping [0, 1) bar progress into a point anywhere along
+   * the shape's boundary — not just the current one (used for the cursor
+   * itself), but also a short span behind it (used for the trail). Read
+   * through a ref, so it can safely close over fresh geometry without
+   * re-subscribing the ticker.
+   */
+  getPointAtProgress: (progress: number) => GeoPoint
   centerPoint: GeoPoint
   showDot: boolean
   showLine: boolean
   color: ColorSource
   dotRadius: number
   lineWidth: number
+  trailWidth: number
   speedFactor: number
   speedTrigger: number
   motionBlurOffset: number
@@ -26,7 +46,7 @@ export type ShapeCursorProps = {
 
 /**
  * The one part of the visualization that legitimately changes every frame:
- * the moving cursor (dot + line to the center) and its motion blur.
+ * the moving cursor (dot + line to the center + trail) and its motion blur.
  *
  * Everything here is imperative — refs are mutated directly inside a
  * `useTick` callback instead of going through React state/props — so a
@@ -40,13 +60,16 @@ export type ShapeCursorProps = {
 export const ShapeCursor = ({
   metronome,
   running,
-  getPoint,
+  bpm,
+  signature,
+  getPointAtProgress,
   centerPoint,
   showDot,
   showLine,
   color,
   dotRadius,
   lineWidth,
+  trailWidth,
   speedFactor,
   speedTrigger,
   motionBlurOffset,
@@ -54,19 +77,26 @@ export const ShapeCursor = ({
 }: ShapeCursorProps) => {
   const dotGraphicsRef = useRef<Graphics>(null)
   const lineGraphicsRef = useRef<Graphics>(null)
+  const trailGraphicsRef = useRef<Graphics>(null)
 
   // "Latest" refs: read every frame from the ticker without forcing the
   // (memoized, stable) tick callback to be re-subscribed on every render.
   const runningRef = useRef(running)
   runningRef.current = running
-  const getPointRef = useRef(getPoint)
-  getPointRef.current = getPoint
+  const bpmRef = useRef(bpm)
+  bpmRef.current = bpm
+  const signatureRef = useRef(signature)
+  signatureRef.current = signature
+  const getPointAtProgressRef = useRef(getPointAtProgress)
+  getPointAtProgressRef.current = getPointAtProgress
   const centerPointRef = useRef(centerPoint)
   centerPointRef.current = centerPoint
   const colorRef = useRef(color)
   colorRef.current = color
   const lineWidthRef = useRef(lineWidth)
   lineWidthRef.current = lineWidth
+  const trailWidthRef = useRef(trailWidth)
+  trailWidthRef.current = trailWidth
 
   // The previous frame's point, used only to derive the motion-blur
   // velocity. `null` means "don't blur the next frame" — used to prevent a
@@ -88,9 +118,71 @@ export const ShapeCursor = ({
     return filter
   }, [motionBlurKernelSize, motionBlurOffset])
 
+  // A light, cheap-quality glow on the trail only (not the dot) — kept as a
+  // single persistent filter instance/instruction so redrawing the trail's
+  // (short, small) path every frame is the only per-frame cost; the glow
+  // itself doesn't need any updating.
+  const trailGlowFilter = useMemo(
+    () =>
+      new GlowFilter({
+        distance: Math.max(trailWidth * 2, 4),
+        outerStrength: 1.5,
+        innerStrength: 0,
+        quality: 0.15,
+        color,
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  )
+  useEffect(() => {
+    trailGlowFilter.color = color
+  }, [trailGlowFilter, color])
+  useEffect(() => {
+    trailGlowFilter.distance = Math.max(trailWidth * 2, 4)
+  }, [trailGlowFilter, trailWidth])
+
+  const drawTrail = useCallback((currentProgress: number) => {
+    const g = trailGraphicsRef.current
+    if (!g) {
+      return
+    }
+
+    g.clear()
+
+    const secondsPerBar = signatureRef.current * (60 / bpmRef.current)
+    const span = Math.min(
+      TRAIL_DURATION_MS / 1000 / secondsPerBar,
+      TRAIL_MAX_SPAN
+    )
+
+    const color = colorRef.current
+    const width = trailWidthRef.current
+    let previous = getPointAtProgressRef.current(currentProgress)
+
+    for (let i = 1; i <= TRAIL_SEGMENTS; i++) {
+      const t = i / TRAIL_SEGMENTS
+      const point = getPointAtProgressRef.current(currentProgress - span * t)
+      // Degressive: dense right behind the dot, fading out toward the tail.
+      const alpha = (1 - t) ** 2 * TRAIL_MAX_ALPHA
+
+      if (alpha > 0.01) {
+        g.moveTo(previous[0], previous[1])
+        g.lineTo(point[0], point[1])
+        // Flat (not round) caps: each segment gets its own alpha, drawn as
+        // its own little stroked path, so a round cap would bulge at every
+        // segment boundary — a string of beads instead of a smooth taper.
+        // Adjacent segments share exact endpoints, so flat caps tile
+        // together cleanly.
+        g.stroke({ width, color, alpha, cap: 'butt' })
+      }
+
+      previous = point
+    }
+  }, [])
+
   const renderAt = useCallback(
     (progress: MetronomeProgress, { snap = false }: { snap?: boolean } = {}) => {
-      const point = getPointRef.current(progress)
+      const point = getPointAtProgressRef.current(progress.progress)
       const [x, y] = point
 
       const dot = dotGraphicsRef.current
@@ -125,8 +217,14 @@ export const ShapeCursor = ({
           alpha: 1,
         })
       }
+
+      if (snap) {
+        trailGraphicsRef.current?.clear()
+      } else {
+        drawTrail(progress.progress)
+      }
     },
-    [motionBlurFilter, speedFactor, speedTrigger]
+    [drawTrail, motionBlurFilter, speedFactor, speedTrigger]
   )
 
   const tick = useCallback(() => {
@@ -152,15 +250,15 @@ export const ShapeCursor = ({
     }
   }, [running, metronome, renderAt])
 
-  // The geometry (`getPoint`) can change while running too — switching
-  // circle/polygon mode, or the signature — which is just as much of a
-  // discontinuity as a stop. Forget the last point so the *next* frame
+  // The geometry (`getPointAtProgress`) can change while running too —
+  // switching circle/polygon mode, or the signature — which is just as much
+  // of a discontinuity as a stop. Forget the last point so the *next* frame
   // doesn't read it as a huge instantaneous jump (see `lastPointRef`); the
   // cursor then just resumes moving normally from wherever the new
   // geometry places it, with no fake velocity spike.
   useEffect(() => {
     lastPointRef.current = null
-  }, [getPoint])
+  }, [getPointAtProgress])
 
   const drawDot = useCallback(
     (g: Graphics) => {
@@ -175,7 +273,14 @@ export const ShapeCursor = ({
     <>
       {showLine ? <pixiGraphics ref={lineGraphicsRef} draw={noop} /> : null}
       {showDot ? (
-        <pixiGraphics ref={dotGraphicsRef} draw={drawDot} />
+        <>
+          <pixiGraphics
+            ref={trailGraphicsRef}
+            draw={noop}
+            filters={[trailGlowFilter]}
+          />
+          <pixiGraphics ref={dotGraphicsRef} draw={drawDot} />
+        </>
       ) : null}
     </>
   )
