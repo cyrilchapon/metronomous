@@ -13,6 +13,7 @@ export type MetronomeState = {
   signature: MetronomeSignature
   subdivisions: MetronomeSubdivision
   running: boolean
+  muted: boolean
 }
 
 const initialMetronomeState: MetronomeState = {
@@ -20,6 +21,7 @@ const initialMetronomeState: MetronomeState = {
   signature: 4,
   subdivisions: 2,
   running: false,
+  muted: false,
 }
 
 const transport = Tone.getTransport()
@@ -42,6 +44,9 @@ export const metronomeSignatureAtom = focusAtom(metronomeStateAtom, (optic) =>
 )
 export const metronomeSubdivisionAtom = focusAtom(metronomeStateAtom, (optic) =>
   optic.prop('subdivisions')
+)
+export const metronomeMutedAtom = focusAtom(metronomeStateAtom, (optic) =>
+  optic.prop('muted')
 )
 
 export const updateMetronomeBpmEffect = atomEffect((get) => {
@@ -67,4 +72,9 @@ export const updateMetronomeSignatureEffect = atomEffect((get) => {
 export const updateMetronomeSubdivisionEffect = atomEffect((get) => {
   const subdivisions = get(metronomeSubdivisionAtom)
   metronome.setSubdivisions(subdivisions)
+})
+
+export const updateMetronomeMutedEffect = atomEffect((get) => {
+  const muted = get(metronomeMutedAtom)
+  Tone.getDestination().mute = muted
 })

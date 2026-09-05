@@ -10,6 +10,11 @@ export type MetronomeSignature = (typeof metronomeSignatures)[number]
 export const metronomeSubdivisions = [1, 2, 3, 4, 6] as const
 export type MetronomeSubdivision = (typeof metronomeSubdivisions)[number]
 
+export const minMetronomeBpm = 20
+export const maxMetronomeBpm = 400
+export const clampMetronomeBpm = (bpm: number) =>
+  Math.min(maxMetronomeBpm, Math.max(minMetronomeBpm, bpm))
+
 export type MetronomeNote = {
   name: string
   velocity: number
