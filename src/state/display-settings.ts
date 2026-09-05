@@ -16,6 +16,7 @@ export type DisplaySettings = {
   cursorMoveMode: CursorMoveMode
   cursorMode: CursorMode[]
   flashMode: FlashMode[]
+  showVisualization: boolean
 }
 
 const initialDisplaySettings: DisplaySettings = {
@@ -25,7 +26,8 @@ const initialDisplaySettings: DisplaySettings = {
   cursorMass: 5,
   cursorMoveMode: 'linear',
   cursorMode: ['dot'],
-  flashMode: ['divisions']
+  flashMode: ['divisions'],
+  showVisualization: true,
 }
 
 export const displaySettingsAtom = atom<DisplaySettings>(initialDisplaySettings)

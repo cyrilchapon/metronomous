@@ -1,5 +1,5 @@
 import { Box, CssBaseline, GlobalStyles, ThemeProvider } from '@mui/material'
-import { Provider as JotaiProvider, useAtom } from 'jotai'
+import { Provider as JotaiProvider, useAtom, useAtomValue } from 'jotai'
 import { FunctionComponent, PropsWithChildren, useMemo } from 'react'
 import { AppDrawer } from './components/app-drawer'
 import { ControlBar } from './components/control-bar'
@@ -8,10 +8,12 @@ import { NavbarOffset } from './components/navbar-offset'
 import { usePaletteMode } from './hooks/use-actual-color-mode'
 import {
   updateMetronomeBpmEffect,
+  updateMetronomeMutedEffect,
   updateMetronomeRunningEffect,
   updateMetronomeSignatureEffect,
   updateMetronomeSubdivisionEffect,
 } from './state/metronome'
+import { displaySettingsAtom } from './state/display-settings'
 import { globalStyles } from './style/global-styles'
 import { getTheme } from './style/theme'
 import { ShapeVisualization } from './components/shape-visualization'
@@ -47,6 +49,9 @@ const AppRoot = () => {
   useAtom(updateMetronomeBpmEffect)
   useAtom(updateMetronomeSignatureEffect)
   useAtom(updateMetronomeSubdivisionEffect)
+  useAtom(updateMetronomeMutedEffect)
+
+  const { showVisualization } = useAtomValue(displaySettingsAtom)
 
   return (
     <>
@@ -63,7 +68,7 @@ const AppRoot = () => {
         <Box
           sx={{ display: 'flex', flex: '1 1 auto', height: '100%', overflow: 'hidden' }}
         >
-          <ShapeVisualization />
+          {showVisualization ? <ShapeVisualization /> : null}
         </Box>
 
         <Box

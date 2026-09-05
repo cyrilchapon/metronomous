@@ -10,6 +10,11 @@ export type MetronomeSignature = (typeof metronomeSignatures)[number]
 export const metronomeSubdivisions = [1, 2, 3, 4, 6] as const
 export type MetronomeSubdivision = (typeof metronomeSubdivisions)[number]
 
+export const minMetronomeBpm = 20
+export const maxMetronomeBpm = 400
+export const clampMetronomeBpm = (bpm: number) =>
+  Math.min(maxMetronomeBpm, Math.max(minMetronomeBpm, bpm))
+
 export type MetronomeNote = {
   name: string
   velocity: number
@@ -171,13 +176,11 @@ export class Metronome {
     const { subdivisionIndex, divisionIndex, subdivisionIndexInDivision } =
       progress
 
-    if (this._lastPolledSubdivisionIndex === null) {
-      // Just (re)started: nothing to compare against yet, and beat 0 was
-      // already handled by the previous stop's reset.
-      this._lastPolledSubdivisionIndex = subdivisionIndex
-      return progress
-    }
-
+    // `_lastPolledSubdivisionIndex` is `null` right after (re)starting, and
+    // never equals a real (numeric) subdivision index — so the first poll
+    // of a run always falls through and fires its tick/flash, including
+    // for beat 0. It used to be treated as "nothing to compare against
+    // yet, skip" here, which meant the very first beat never flashed.
     if (subdivisionIndex === this._lastPolledSubdivisionIndex) {
       return progress
     }
