@@ -1,33 +1,34 @@
-import {
-  AppBar,
-  AppBarProps,
-  Divider,
-  IconButton, Toolbar,
-  Typography
-} from '@mui/material'
-import { FunctionComponent } from 'react'
-import RemoveOutlinedIcon from '@mui/icons-material/RemoveOutlined'
-import AddOutlinedIcon from '@mui/icons-material/AddOutlined'
-import PlayArrowIcon from '@mui/icons-material/PlayArrow'
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
-import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined'
-import VolumeUpOutlinedIcon from '@mui/icons-material/VolumeUpOutlined'
-import VolumeOffOutlinedIcon from '@mui/icons-material/VolumeOffOutlined'
-import { mergeSx } from 'merge-sx'
 import { useAtom } from 'jotai'
+import {
+  Eye,
+  EyeOff,
+  Minus,
+  Pause,
+  Play,
+  Plus,
+  Volume2,
+  VolumeX,
+} from 'lucide-react'
+import { FunctionComponent } from 'react'
+import { useHoldToRepeat } from '../hooks/use-hold-to-repeat'
+import { displaySettingsAtom } from '../state/display-settings'
 import {
   metronomeBpmAtom,
   metronomeMutedAtom,
-  metronomeRunningAtom
+  metronomeRunningAtom,
 } from '../state/metronome'
 import { clampMetronomeBpm } from '../util/metronome'
-import { displaySettingsAtom } from '../state/display-settings'
-import { useHoldToRepeat } from '../hooks/use-hold-to-repeat'
-import PauseIcon from '@mui/icons-material/Pause'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+import { cn } from '@/lib/utils'
 
-export type ControlBarProps = AppBarProps<'div'>
+export type ControlBarProps = React.ComponentProps<typeof Card>
 
-export const ControlBar: FunctionComponent<ControlBarProps> = (props) => {
+export const ControlBar: FunctionComponent<ControlBarProps> = ({
+  className,
+  ...props
+}) => {
   const [metronomeRunning, setMetronomeRunning] = useAtom(metronomeRunningAtom)
   const [metronomeBpm, setMetronomeBpm] = useAtom(metronomeBpmAtom)
   const [metronomeMuted, setMetronomeMuted] = useAtom(metronomeMutedAtom)
@@ -42,94 +43,70 @@ export const ControlBar: FunctionComponent<ControlBarProps> = (props) => {
   const incrementHandlers = useHoldToRepeat(incrementBpm)
 
   return (
-    <AppBar
-      variant="outlined"
-      elevation={0}
-      color="transparent"
-      position="static"
+    <Card
+      className={cn('w-fit flex-row items-center gap-1 p-2', className)}
       {...props}
-      sx={mergeSx(
-        (theme) => ({
-          borderRadius: theme.shape.borderRadius,
-        }),
-        props.sx
-      )}
-      component={'div'}
     >
-      <Toolbar>
-        <IconButton color="inherit" size="medium" {...decrementHandlers}>
-          <RemoveOutlinedIcon fontSize="inherit" />
-        </IconButton>
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Diminuer le tempo"
+        {...decrementHandlers}
+      >
+        <Minus />
+      </Button>
 
-        <IconButton
-          color="primary"
-          size="medium"
-          onClick={() => setMetronomeRunning((prevState) => !prevState)}
-        >
-          {metronomeRunning ? (
-            <PauseIcon fontSize="large" />
-          ) : (
-            <PlayArrowIcon fontSize="large" />
-          )}
-        </IconButton>
+      <Button
+        size="icon-lg"
+        aria-label={metronomeRunning ? 'Arrêter' : 'Démarrer'}
+        onClick={() => setMetronomeRunning((prevState) => !prevState)}
+      >
+        {metronomeRunning ? <Pause /> : <Play />}
+      </Button>
 
-        <IconButton color="inherit" size="medium" {...incrementHandlers}>
-          <AddOutlinedIcon fontSize="inherit" />
-        </IconButton>
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Augmenter le tempo"
+        {...incrementHandlers}
+      >
+        <Plus />
+      </Button>
 
-        <Divider
-          orientation="vertical"
-          variant={'middle'}
-          flexItem
-          sx={{ marginX: 3 }}
-        />
+      <Separator orientation="vertical" className="mx-2 h-6" />
 
-        <Typography variant="h5">
-          {metronomeBpm}
-        </Typography>
+      <span className="text-2xl font-semibold tabular-nums">
+        {metronomeBpm}
+      </span>
 
-        <Divider
-          orientation="vertical"
-          variant={'middle'}
-          flexItem
-          sx={{ marginX: 3 }}
-        />
+      <Separator orientation="vertical" className="mx-2 h-6" />
 
-        <IconButton
-          color="inherit"
-          size="medium"
-          aria-label={
-            displaySettings.showVisualization
-              ? 'Masquer la visualisation'
-              : 'Afficher la visualisation'
-          }
-          onClick={() =>
-            setDisplaySettings((prevState) => ({
-              ...prevState,
-              showVisualization: !prevState.showVisualization,
-            }))
-          }
-        >
-          {displaySettings.showVisualization ? (
-            <VisibilityOutlinedIcon fontSize="medium" />
-          ) : (
-            <VisibilityOffOutlinedIcon fontSize="medium" />
-          )}
-        </IconButton>
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={
+          displaySettings.showVisualization
+            ? 'Masquer la visualisation'
+            : 'Afficher la visualisation'
+        }
+        onClick={() =>
+          setDisplaySettings((prevState) => ({
+            ...prevState,
+            showVisualization: !prevState.showVisualization,
+          }))
+        }
+      >
+        {displaySettings.showVisualization ? <Eye /> : <EyeOff />}
+      </Button>
 
-        <IconButton
-          color="inherit"
-          size="medium"
-          aria-label={metronomeMuted ? 'Réactiver le son' : 'Couper le son'}
-          onClick={() => setMetronomeMuted((prevState) => !prevState)}
-        >
-          {metronomeMuted ? (
-            <VolumeOffOutlinedIcon fontSize="medium" />
-          ) : (
-            <VolumeUpOutlinedIcon fontSize="medium" />
-          )}
-        </IconButton>
-      </Toolbar>
-    </AppBar>
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label={metronomeMuted ? 'Réactiver le son' : 'Couper le son'}
+        onClick={() => setMetronomeMuted((prevState) => !prevState)}
+      >
+        {metronomeMuted ? <VolumeX /> : <Volume2 />}
+      </Button>
+    </Card>
   )
 }

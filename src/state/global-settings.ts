@@ -1,18 +1,9 @@
-import { PaletteMode } from '@mui/material'
 import { atom } from 'jotai'
 import { focusAtom } from 'jotai-optics'
-
-export type ColorModeSetting = PaletteMode | 'system'
-const _settingColorModes = [
-  'light',
-  'dark',
-  'system',
-] satisfies ColorModeSetting[]
-export const isColorModeSetting = (s: unknown): s is ColorModeSetting =>
-  typeof s === 'string' && _settingColorModes.includes(s as ColorModeSetting)
+import { ColorModeSetting } from '../style/color-mode'
 
 export type GlobalSettings = {
-  colorMode: PaletteMode | 'system'
+  colorMode: ColorModeSetting
 }
 
 const initialGlobalSettings: GlobalSettings = {

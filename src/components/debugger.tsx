@@ -1,32 +1,41 @@
-import { Chip, Paper, PaperProps } from '@mui/material'
 import { useAtomValue } from 'jotai'
-import { metronomeStateAtom } from '../state/metronome'
+import { Circle, Zap } from 'lucide-react'
 import { FunctionComponent } from 'react'
-import { mergeSx } from 'merge-sx'
-import CircleIcon from '@mui/icons-material/Circle'
-import BoltIcon from '@mui/icons-material/Bolt';
-import Grid from '@mui/material/Grid'
+import { metronomeStateAtom } from '../state/metronome'
+import { Badge } from '@/components/ui/badge'
+import { Card } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 
-export const Debugger: FunctionComponent<PaperProps> = (props) => {
+export type DebuggerProps = React.ComponentProps<typeof Card>
+
+export const Debugger: FunctionComponent<DebuggerProps> = ({
+  className,
+  ...props
+}) => {
   const { bpm, running } = useAtomValue(metronomeStateAtom)
 
   return (
-    <Paper elevation={3} {...props} sx={mergeSx({ paddingX: 2, paddingY: 1 }, props.sx)}>
-      <Grid container>
-        <Grid size="grow" sx={{ display: 'flex', justifyContent: 'center' }}>
-          <Chip
-            label={running ? 'running' : 'stopped'}
-            icon={<CircleIcon fontSize='small' color={running ? 'success' : 'disabled'} />}
-          />
-        </Grid>
+    <Card
+      className={cn(
+        'flex-row items-center justify-center gap-4 p-3',
+        className
+      )}
+      {...props}
+    >
+      <Badge variant="outline">
+        <Circle
+          className={cn(
+            'fill-current',
+            running ? 'text-green-500' : 'text-muted-foreground'
+          )}
+        />
+        {running ? 'running' : 'stopped'}
+      </Badge>
 
-        <Grid size="grow" sx={{ display: 'flex', justifyContent: 'center' }}>
-          <Chip
-            label={`${`${bpm}`.padStart(3, '0')} bpm`}
-            icon={<BoltIcon />}
-          />
-        </Grid>
-      </Grid>
-    </Paper>
+      <Badge variant="outline">
+        <Zap />
+        {`${bpm}`.padStart(3, '0')} bpm
+      </Badge>
+    </Card>
   )
 }

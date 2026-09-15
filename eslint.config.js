@@ -65,5 +65,15 @@ export default [
       'react/prop-types': 'off',
     },
   },
+  {
+    // `src/components/ui` holds vendored shadcn/ui registry code. It's meant
+    // to be (re-)generated with `shadcn add`, so the project's own style
+    // rules shouldn't fight it — only its type-checked correctness matters.
+    files: ['src/components/ui/**'],
+    rules: {
+      '@typescript-eslint/prefer-nullish-coalescing': 'off',
+      'react-refresh/only-export-components': 'off',
+    },
+  },
   prettierConfig,
 ]

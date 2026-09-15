@@ -1,6 +1,7 @@
-import { PaletteMode, useMediaQuery } from '@mui/material'
+import { useMedia } from 'react-use'
+import { ColorMode } from '../style/color-mode'
 
-export const useSystemPaletteMode = (): PaletteMode => {
-  const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)')
+export const useSystemColorMode = (): ColorMode => {
+  const prefersDarkMode = useMedia('(prefers-color-scheme: dark)', false)
   return prefersDarkMode ? 'dark' : 'light'
 }
