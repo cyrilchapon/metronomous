@@ -60,9 +60,17 @@ the visualization's palette is declared as `--metronome-*` custom properties
 in `src/index.css`, derived from the shadcn tokens next to them:
 
 ```css
---metronome-back: var(--background);
---metronome-main: var(--foreground); /* the accent in dark mode */
---metronome-cursor: var(--metronome-accent);
+:root {
+  --metronome-back: var(--background);
+  --metronome-main: var(--foreground);
+  --metronome-cursor: var(--metronome-accent);
+}
+
+/* The shape and the cursor swap roles in the dark theme. */
+.dark {
+  --metronome-main: var(--metronome-accent);
+  --metronome-cursor: var(--foreground);
+}
 ```
 
 `readDrawPalette` resolves them to the numbers PixiJS wants, and
