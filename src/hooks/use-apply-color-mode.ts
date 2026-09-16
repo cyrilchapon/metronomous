@@ -1,16 +1,16 @@
 import { useLayoutEffect } from 'react'
+import { applyColorMode } from '../style/color-mode'
 import { useColorMode } from './use-color-mode'
 
 /**
- * Reflects the resolved color mode on `<html>`, which is where Tailwind's
- * `dark` variant and the shadcn theme tokens are keyed.
+ * Keeps `<html>` in sync with the color mode. The *initial* mode is applied
+ * in `main.tsx`, before React renders — a layout effect here would run after
+ * the effects of the components that read the resulting theme.
  */
 export const useApplyColorMode = () => {
   const colorMode = useColorMode()
 
   useLayoutEffect(() => {
-    const root = document.documentElement
-    root.classList.toggle('dark', colorMode === 'dark')
-    root.style.colorScheme = colorMode
+    applyColorMode(colorMode)
   }, [colorMode])
 }

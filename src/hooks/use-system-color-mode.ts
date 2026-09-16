@@ -1,7 +1,7 @@
 import { useMedia } from 'react-use'
-import { ColorMode } from '../style/color-mode'
+import { ColorMode, prefersDarkQuery } from '../style/color-mode'
 
 export const useSystemColorMode = (): ColorMode => {
-  const prefersDarkMode = useMedia('(prefers-color-scheme: dark)', false)
+  const prefersDarkMode = useMedia(prefersDarkQuery, false)
   return prefersDarkMode ? 'dark' : 'light'
 }

@@ -3,9 +3,8 @@ import { useAtomValue } from 'jotai'
 import { FunctionComponent, useMemo, useRef, useState } from 'react'
 import { useThrottledCallback } from 'use-debounce'
 import { useResizeObserver } from 'use-resize-observer'
-import { useColorMode } from '../hooks/use-color-mode'
+import { useDrawPalette } from '../hooks/use-draw-palette'
 import { displaySettingsAtom } from '../state/display-settings'
-import { getDrawPalette } from '../style/draw-palette'
 import { getLargestPossibleSquare } from '../util/geometry'
 import { massEasingIn } from '../util/mass-easing'
 import { CircleVisualizationCore } from './shape-visualization-stage/circle-visualization-stage'
@@ -62,13 +61,11 @@ const ShapeVisualizationCanvas: FunctionComponent<
   const { shapeMode } = useAtomValue(displaySettingsAtom)
 
   const { cursorMoveMode, cursorMass } = useAtomValue(displaySettingsAtom)
-  const colorMode = useColorMode()
-
   const {
     back: backColor,
     main: mainColor,
     cursor: cursorColor,
-  } = useMemo(() => getDrawPalette(colorMode), [colorMode])
+  } = useDrawPalette()
 
   const largestPossibleSquare = useMemo(
     () => getLargestPossibleSquare(width - 2, height - 2, padding),

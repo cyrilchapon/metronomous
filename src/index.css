@@ -82,6 +82,14 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* Colors the PixiJS visualization draws with. Read from JS by
+     `readDrawPalette`, which is why they're plain custom properties rather
+     than `@theme` entries — nothing renders them as utilities. */
+  --metronome-accent: #ff3300;
+  --metronome-back: var(--background);
+  --metronome-main: var(--foreground);
+  --metronome-cursor: var(--metronome-accent);
 }
 
 .dark {
@@ -117,6 +125,10 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* The shape and the cursor swap roles in the dark theme. */
+  --metronome-main: var(--metronome-accent);
+  --metronome-cursor: var(--foreground);
 }
 
 @layer base {
