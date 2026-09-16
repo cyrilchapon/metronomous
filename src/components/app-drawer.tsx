@@ -30,7 +30,7 @@ import {
   metronomeSubdivisionAtom,
 } from '../state/metronome'
 import { findLiteral, findLiterals } from '../util/array'
-import { assertIsEasingMass, easingMasses } from '../util/mass-easing'
+import { easingMasses, isEasingMass } from '../util/mass-easing'
 import { metronomeSignatures, metronomeSubdivisions } from '../util/metronome'
 import { ColorModeToggleGroup } from './color-mode-toggle-group'
 import { SubdivisionIcon } from './subdivision-icon'
@@ -46,8 +46,6 @@ import {
 import { Slider } from '@/components/ui/slider'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
-const minMass = Math.min(...easingMasses)
-const maxMass = Math.max(...easingMasses)
 
 export type AppDrawerProps = Omit<
   React.ComponentProps<typeof Sheet>,
@@ -255,19 +253,26 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
               data-disabled={cursorEasingDisabled || undefined}
             >
               <Label htmlFor="cursor-mass-input">Inertie</Label>
+              {/* Driven by index rather than by value: a single `step` can
+                  only track `easingMasses` while it happens to be contiguous,
+                  and Radix has no equivalent of MUI's snap-to-marks. */}
               <Slider
                 id="cursor-mass-input"
-                value={[displaySettings.cursorMass]}
+                value={[easingMasses.indexOf(displaySettings.cursorMass)]}
                 disabled={cursorEasingDisabled}
-                min={minMass}
-                max={maxMass}
+                min={0}
+                max={easingMasses.length - 1}
                 step={1}
-                onValueChange={([value]) => {
-                  assertIsEasingMass(value)
+                onValueChange={([index]) => {
+                  const cursorMass = easingMasses[index]
+
+                  if (!isEasingMass(cursorMass)) {
+                    return
+                  }
 
                   setDisplaySettings((prevState) => ({
                     ...prevState,
-                    cursorMass: value,
+                    cursorMass,
                   }))
                 }}
               />
