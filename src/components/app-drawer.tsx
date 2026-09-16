@@ -1,55 +1,56 @@
-import {
-  Box,
-  Divider,
-  Drawer,
-  DrawerProps,
-  InputLabel,
-  Slider,
-  Stack,
-  SvgIcon,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-} from '@mui/material'
 import { useAtom } from 'jotai'
-import { FunctionComponent, useCallback } from 'react'
+import {
+  Circle,
+  CircleDot,
+  CircleDotDashed,
+  Disc,
+  GitCommitHorizontal,
+  Minus,
+  Pentagon,
+  Radar,
+  Waves,
+} from 'lucide-react'
+import { FunctionComponent } from 'react'
 import {
   CursorMode,
   CursorMoveMode,
   FlashMode,
   ShapeDivisions,
   ShapeMode,
+  cursorModes,
+  cursorMoveModes,
   displaySettingsAtom,
+  flashModes,
+  shapeDivisions,
+  shapeModes,
 } from '../state/display-settings'
 import { menuDrawerOpenAtom } from '../state/global-ui'
-import { assertIsEasingMass, easingMasses } from '../util/mass-easing'
-import { ColorModeToggleButton } from './color-mode-toggle-button'
 import {
   metronomeSignatureAtom,
   metronomeSubdivisionAtom,
 } from '../state/metronome'
+import { findLiteral, findLiterals } from '../util/array'
+import { easingMasses, isEasingMass } from '../util/mass-easing'
+import { metronomeSignatures, metronomeSubdivisions } from '../util/metronome'
+import { ColorModeToggleGroup } from './color-mode-toggle-group'
 import { SubdivisionIcon } from './subdivision-icon'
+import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
 import {
-  MetronomeSignature,
-  MetronomeSubdivision,
-  metronomeSignatures,
-  metronomeSubdivisions,
-} from '../util/metronome'
-import PentagonOutlinedIcon from '@mui/icons-material/PentagonOutlined'
-import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined'
-import CommitOutlinedIcon from '@mui/icons-material/CommitOutlined'
-import AnimationOutlinedIcon from '@mui/icons-material/AnimationOutlined'
-import HdrStrongOutlinedIcon from '@mui/icons-material/HdrStrongOutlined'
-import CircleIcon from '@mui/icons-material/Circle'
-import MdiSineWave from '@mdi/svg/svg/sine-wave.svg?react'
-import HorizontalRuleIcon from '@mui/icons-material/HorizontalRule'
-import RadarOutlinedIcon from '@mui/icons-material/RadarOutlined';
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { Slider } from '@/components/ui/slider'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 
-const marks = easingMasses.map((m) => ({ value: m }))
-const minMass = Math.min(...easingMasses)
-const maxMass = Math.max(...easingMasses)
 
-export type AppDrawerProps = Omit<DrawerProps, 'open' | 'onClose'>
+export type AppDrawerProps = Omit<
+  React.ComponentProps<typeof Sheet>,
+  'open' | 'onOpenChange'
+>
 
 export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
   const [menuDrawerOpen, setMenuDrawerOpen] = useAtom(menuDrawerOpenAtom)
@@ -61,99 +62,98 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
     metronomeSubdivisionAtom
   )
 
-  const handleDrawerToggle = useCallback(() => {
-    setMenuDrawerOpen(false)
-  }, [setMenuDrawerOpen])
+  const cursorEasingDisabled = displaySettings.cursorMoveMode !== 'eased'
 
   return (
-    <Drawer
-      open={menuDrawerOpen}
-      anchor="right"
-      onClose={handleDrawerToggle}
-      elevation={0}
-      {...props}
-    >
-      <Box
-        sx={{
-          width: [300, 400, 500],
-          height: '100%',
-          paddingX: [4, 5, 8],
-          paddingY: 4,
-          display: 'flex',
-          flexDirection: 'row',
-        }}
-      >
-        <Stack sx={{ flex: 1 }} spacing={4}>
-          <Stack spacing={2}>
-            <Typography variant="h5" sx={{ lineHeight: 1 }}>
-              Métronome
-            </Typography>
-            <Box>
-              <InputLabel sx={{ marginBottom: 2 }}>Signature</InputLabel>
+    <Sheet open={menuDrawerOpen} onOpenChange={setMenuDrawerOpen} {...props}>
+      <SheetContent side="right" className="overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Réglages</SheetTitle>
+          <SheetDescription>
+            Métronome, visualisation et apparence.
+          </SheetDescription>
+        </SheetHeader>
 
-              <ToggleButtonGroup
-                value={metronomeSignature}
-                exclusive
-                onChange={(_event, value: MetronomeSignature) => {
+        <div className="flex flex-col gap-6 px-4 pb-6">
+          <section className="flex flex-col gap-4">
+            <h3 className="font-heading text-base font-medium">Métronome</h3>
+
+            <div className="grid gap-2">
+              <Label>Signature</Label>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                spacing={0}
+                size="sm"
+                className="w-full"
+                value={String(metronomeSignature)}
+                onValueChange={(raw) => {
+                  const value = findLiteral(metronomeSignatures, raw)
                   if (value == null) {
                     return
                   }
                   setMetronomeSignature(value)
                 }}
-                fullWidth
-                size="small"
               >
                 {metronomeSignatures.map((signature) => (
-                  <ToggleButton key={signature} value={signature}>
+                  <ToggleGroupItem
+                    key={signature}
+                    value={String(signature)}
+                    className="flex-1"
+                  >
                     {signature}/4
-                  </ToggleButton>
+                  </ToggleGroupItem>
                 ))}
-              </ToggleButtonGroup>
-            </Box>
+              </ToggleGroup>
+            </div>
 
-            <Box>
-              <InputLabel sx={{ marginBottom: 2 }}>Subdivisions</InputLabel>
-
-              <ToggleButtonGroup
-                value={metronomeSubdivision}
-                exclusive
-                onChange={(_event, value: MetronomeSubdivision) => {
+            <div className="grid gap-2">
+              <Label>Subdivisions</Label>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                spacing={0}
+                size="sm"
+                className="w-full"
+                value={String(metronomeSubdivision)}
+                onValueChange={(raw) => {
+                  const value = findLiteral(metronomeSubdivisions, raw)
                   if (value == null) {
                     return
                   }
                   setMetronomeSubdivision(value)
                 }}
-                fullWidth
-                size="small"
               >
                 {metronomeSubdivisions.map((subdivision) => (
-                  <ToggleButton key={subdivision} value={subdivision}>
-                    <SubdivisionIcon
-                      subdivision={subdivision}
-                      fontSize="small"
-                    />
-                  </ToggleButton>
+                  <ToggleGroupItem
+                    key={subdivision}
+                    value={String(subdivision)}
+                    className="flex-1"
+                    aria-label={`${subdivision} par temps`}
+                  >
+                    <SubdivisionIcon subdivision={subdivision} />
+                  </ToggleGroupItem>
                 ))}
-              </ToggleButtonGroup>
-            </Box>
-          </Stack>
+              </ToggleGroup>
+            </div>
+          </section>
 
-          <Divider />
+          <Separator />
 
-          <Stack spacing={2}>
-            <Typography variant="h5" sx={{ lineHeight: 1 }}>
-              Fond
-            </Typography>
+          <section className="flex flex-col gap-4">
+            <h3 className="font-heading text-base font-medium">Fond</h3>
 
-            <Box>
-              <InputLabel htmlFor="line-shape-input" sx={{ marginBottom: 1 }}>
-                Forme
-              </InputLabel>
-
-              <ToggleButtonGroup
+            <div className="grid gap-2">
+              <Label>Forme</Label>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                spacing={0}
+                size="sm"
+                className="w-full"
                 value={displaySettings.shapeMode}
-                exclusive
-                onChange={(_event, value: ShapeMode) => {
+                onValueChange={(raw) => {
+                  const value = findLiteral<ShapeMode>(shapeModes, raw)
                   if (value == null) {
                     return
                   }
@@ -162,28 +162,29 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
                     shapeMode: value,
                   }))
                 }}
-                fullWidth
-                size="small"
               >
-                <ToggleButton value={'circle'}>
-                  <CircleOutlinedIcon sx={{ mr: 1 }} fontSize="small" /> Cercle
-                </ToggleButton>
-                <ToggleButton value={'polygon'}>
-                  <PentagonOutlinedIcon sx={{ mr: 1 }} fontSize="small" />{' '}
+                <ToggleGroupItem value="circle" className="flex-1">
+                  <Circle />
+                  Cercle
+                </ToggleGroupItem>
+                <ToggleGroupItem value="polygon" className="flex-1">
+                  <Pentagon />
                   Polygone
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </Box>
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
 
-            <Box>
-              <InputLabel htmlFor="cursor-mass-input" sx={{ marginBottom: 1 }}>
-                Subdivisions
-              </InputLabel>
-
-              <ToggleButtonGroup
+            <div className="grid gap-2">
+              <Label>Subdivisions</Label>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                spacing={0}
+                size="sm"
+                className="w-full"
                 value={displaySettings.shapeSubdivisions}
-                exclusive
-                onChange={(_event, value: ShapeDivisions) => {
+                onValueChange={(raw) => {
+                  const value = findLiteral<ShapeDivisions>(shapeDivisions, raw)
                   if (value == null) {
                     return
                   }
@@ -192,41 +193,41 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
                     shapeSubdivisions: value,
                   }))
                 }}
-                fullWidth
-                size="small"
               >
-                <ToggleButton value={'off'}>Off</ToggleButton>
-                <ToggleButton value={'divisions'}>
-                  <CircleIcon
-                    sx={{ mr: 1, fontSize: '1em' }}
-                    fontSize="small"
-                  />{' '}
+                <ToggleGroupItem value="off" className="flex-1">
+                  Off
+                </ToggleGroupItem>
+                <ToggleGroupItem value="divisions" className="flex-1">
+                  <CircleDot />
                   Temps
-                </ToggleButton>
-                <ToggleButton value={'subdivisions'}>
-                  <HdrStrongOutlinedIcon sx={{ mr: 1 }} fontSize="small" />{' '}
+                </ToggleGroupItem>
+                <ToggleGroupItem value="subdivisions" className="flex-1">
+                  <CircleDotDashed />
                   Toutes
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </Box>
-          </Stack>
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          </section>
 
-          <Divider />
+          <Separator />
 
-          <Stack spacing={2}>
-            <Typography variant="h5" sx={{ lineHeight: 1 }}>
-              Curseur
-            </Typography>
+          <section className="flex flex-col gap-4">
+            <h3 className="font-heading text-base font-medium">Curseur</h3>
 
-            <Box>
-              <InputLabel htmlFor="cursor-mass-input" sx={{ marginBottom: 1 }}>
-                Mouvement
-              </InputLabel>
-
-              <ToggleButtonGroup
+            <div className="grid gap-2">
+              <Label>Mouvement</Label>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                spacing={0}
+                size="sm"
+                className="w-full"
                 value={displaySettings.cursorMoveMode}
-                exclusive
-                onChange={(_event, value: CursorMoveMode) => {
+                onValueChange={(raw) => {
+                  const value = findLiteral<CursorMoveMode>(
+                    cursorMoveModes,
+                    raw
+                  )
                   if (value == null) {
                     return
                   }
@@ -235,134 +236,123 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
                     cursorMoveMode: value,
                   }))
                 }}
-                fullWidth
-                size="small"
               >
-                <ToggleButton value={'eased'}>
-                  <SvgIcon
-                    sx={{ mr: 1 }}
-                    fontSize="small"
-                    inheritViewBox
-                    component={MdiSineWave}
-                  />
+                <ToggleGroupItem value="eased" className="flex-1">
+                  <Waves />
                   Inertiel
-                </ToggleButton>
-
-                <ToggleButton value={'linear'}>
-                  <HorizontalRuleIcon sx={{ mr: 1 }} fontSize="small" />{' '}
+                </ToggleGroupItem>
+                <ToggleGroupItem value="linear" className="flex-1">
+                  <Minus />
                   Linéaire
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </Box>
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
 
-            <Box>
-              <InputLabel
-                htmlFor="cursor-mass-input"
-                sx={{ marginBottom: 1 }}
-                disabled={displaySettings.cursorMoveMode !== 'eased'}
-              >
-                Inertie
-              </InputLabel>
-
+            <div
+              className="group grid gap-2"
+              data-disabled={cursorEasingDisabled || undefined}
+            >
+              <Label htmlFor="cursor-mass-input">Inertie</Label>
+              {/* Driven by index rather than by value: a single `step` can
+                  only track `easingMasses` while it happens to be contiguous,
+                  and Radix has no equivalent of MUI's snap-to-marks. */}
               <Slider
                 id="cursor-mass-input"
-                value={displaySettings.cursorMass}
-                disabled={displaySettings.cursorMoveMode !== 'eased'}
-                onChange={(_e, value) => {
-                  assertIsEasingMass(value)
+                value={[easingMasses.indexOf(displaySettings.cursorMass)]}
+                disabled={cursorEasingDisabled}
+                min={0}
+                max={easingMasses.length - 1}
+                step={1}
+                onValueChange={([index]) => {
+                  const cursorMass = easingMasses[index]
+
+                  if (!isEasingMass(cursorMass)) {
+                    return
+                  }
 
                   setDisplaySettings((prevState) => ({
                     ...prevState,
-                    cursorMass: value,
+                    cursorMass,
                   }))
                 }}
-                step={null}
-                marks={marks}
-                valueLabelDisplay="auto"
-                min={minMass}
-                max={maxMass}
               />
-            </Box>
+            </div>
 
-            <Box>
-              <InputLabel htmlFor="cursor-flash-input" sx={{ marginBottom: 1 }}>
-                Modes de curseur
-              </InputLabel>
-
-              <ToggleButtonGroup
+            <div className="grid gap-2">
+              <Label>Modes de curseur</Label>
+              <ToggleGroup
+                type="multiple"
+                variant="outline"
+                spacing={0}
+                size="sm"
+                className="w-full"
                 value={displaySettings.cursorMode}
-                onChange={(_event, value: CursorMode[]) => {
+                onValueChange={(raws) => {
+                  const value = findLiterals<CursorMode>(cursorModes, raws)
                   setDisplaySettings((prevState) => ({
                     ...prevState,
                     cursorMode: value,
                   }))
                 }}
-                fullWidth
               >
-                <ToggleButton value={'dot'}>
-                  <AnimationOutlinedIcon sx={{ mr: 1 }} fontSize="small" />{' '}
+                <ToggleGroupItem value="dot" className="flex-1">
+                  <Disc />
                   Point
-                </ToggleButton>
-                <ToggleButton value={'line'}>
-                  <RadarOutlinedIcon sx={{ mr: 1 }} fontSize="small" />{' '}
+                </ToggleGroupItem>
+                <ToggleGroupItem value="line" className="flex-1">
+                  <Radar />
                   Ligne
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </Box>
-          </Stack>
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          </section>
 
-          <Stack spacing={2}>
-            <Typography variant="h5" sx={{ lineHeight: 1 }}>
-              Flash
-            </Typography>
+          <Separator />
 
-            <Box>
-              <InputLabel htmlFor="cursor-flash-input" sx={{ marginBottom: 1 }}>
-                Modes de flash
-              </InputLabel>
+          <section className="flex flex-col gap-4">
+            <h3 className="font-heading text-base font-medium">Flash</h3>
 
-              <ToggleButtonGroup
+            <div className="grid gap-2">
+              <Label>Modes de flash</Label>
+              <ToggleGroup
+                type="multiple"
+                variant="outline"
+                spacing={0}
+                size="sm"
+                className="w-full"
                 value={displaySettings.flashMode}
-                onChange={(_event, value: FlashMode[]) => {
+                onValueChange={(raws) => {
+                  const value = findLiterals<FlashMode>(flashModes, raws)
                   setDisplaySettings((prevState) => ({
                     ...prevState,
                     flashMode: value,
                   }))
                 }}
-                fullWidth
               >
-                <ToggleButton value={'shape'}>
+                <ToggleGroupItem value="shape" className="flex-1">
                   {displaySettings.shapeMode === 'circle' ? (
-                    <CircleOutlinedIcon sx={{ mr: 1 }} fontSize="small" />
-                  ) : displaySettings.shapeMode === 'polygon' ? (
-                    <PentagonOutlinedIcon sx={{ mr: 1 }} fontSize="small" />
-                  ) : null}
+                    <Circle />
+                  ) : (
+                    <Pentagon />
+                  )}
                   Forme
-                </ToggleButton>
-                <ToggleButton value={'divisions'}>
-                  <CommitOutlinedIcon sx={{ mr: 1 }} fontSize="small" />{' '}
+                </ToggleGroupItem>
+                <ToggleGroupItem value="divisions" className="flex-1">
+                  <GitCommitHorizontal />
                   Subdivisions
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </Box>
-          </Stack>
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          </section>
 
-          <Divider
-            sx={{
-              marginBottom: 2,
-              justifySelf: 'flex-end',
-              marginTop: 'auto !important',
-            }}
-          />
+          <Separator />
 
-          <Stack spacing={2}>
-            <Box>
-              <InputLabel sx={{ marginBottom: 2 }}>Mode de couleur</InputLabel>
-              <ColorModeToggleButton size="small" color="primary" fullWidth />
-            </Box>
-          </Stack>
-        </Stack>
-      </Box>
-    </Drawer>
+          <section className="grid gap-2">
+            <Label>Mode de couleur</Label>
+            <ColorModeToggleGroup size="sm" />
+          </section>
+        </div>
+      </SheetContent>
+    </Sheet>
   )
 }

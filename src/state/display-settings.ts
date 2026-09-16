@@ -1,12 +1,23 @@
 import { atom } from 'jotai'
 import { EasingMass } from '../util/mass-easing'
 
-export type ShapeMode = 'circle' | 'polygon'
-export type ShapeDisplay = 'full' | 'stroke' | 'off'
-export type ShapeDivisions = 'divisions' | 'subdivisions' | 'off'
-export type CursorMoveMode = 'eased' | 'linear'
-export type CursorMode = 'dot' | 'line'
-export type FlashMode = 'divisions' | 'shape'
+export const shapeModes = ['circle', 'polygon'] as const
+export type ShapeMode = (typeof shapeModes)[number]
+
+export const shapeDisplays = ['full', 'stroke', 'off'] as const
+export type ShapeDisplay = (typeof shapeDisplays)[number]
+
+export const shapeDivisions = ['divisions', 'subdivisions', 'off'] as const
+export type ShapeDivisions = (typeof shapeDivisions)[number]
+
+export const cursorMoveModes = ['eased', 'linear'] as const
+export type CursorMoveMode = (typeof cursorMoveModes)[number]
+
+export const cursorModes = ['dot', 'line'] as const
+export type CursorMode = (typeof cursorModes)[number]
+
+export const flashModes = ['divisions', 'shape'] as const
+export type FlashMode = (typeof flashModes)[number]
 
 export type DisplaySettings = {
   shapeMode: ShapeMode

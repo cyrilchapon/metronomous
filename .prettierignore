@@ -1,0 +1,3 @@
+# Vendored shadcn/ui registry code — kept byte-identical to what
+# `shadcn add` generates so re-running it stays a no-op.
+src/components/ui

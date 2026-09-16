@@ -1,4 +1,3 @@
-import { SvgIcon, SvgIconProps } from '@mui/material'
 import { FunctionComponent, useMemo } from 'react'
 
 import eighthTripletNoteSvg from '../assets/note-eighth-triplet.svg?react'
@@ -23,7 +22,7 @@ const getSubdivisionSvg = (subdivision: MetronomeSubdivision) => {
   }
 }
 
-type SubdivisionIconProps = SvgIconProps & {
+export type SubdivisionIconProps = React.SVGProps<SVGSVGElement> & {
   subdivision: MetronomeSubdivision
 }
 
@@ -31,9 +30,7 @@ export const SubdivisionIcon: FunctionComponent<SubdivisionIconProps> = ({
   subdivision,
   ...props
 }) => {
-  const iconSvg = useMemo(() => getSubdivisionSvg(subdivision), [subdivision])
+  const IconSvg = useMemo(() => getSubdivisionSvg(subdivision), [subdivision])
 
-  return (
-    <SvgIcon inheritViewBox fontSize="medium" {...props} component={iconSvg} />
-  )
+  return <IconSvg {...props} />
 }

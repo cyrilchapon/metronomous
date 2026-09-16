@@ -1,9 +1,9 @@
 import { Easings } from '@juliendargelos/easings'
-import { Box, useTheme } from '@mui/material'
 import { useAtomValue } from 'jotai'
 import { FunctionComponent, useMemo, useRef, useState } from 'react'
 import { useThrottledCallback } from 'use-debounce'
 import { useResizeObserver } from 'use-resize-observer'
+import { useDrawPalette } from '../hooks/use-draw-palette'
 import { displaySettingsAtom } from '../state/display-settings'
 import { getLargestPossibleSquare } from '../util/geometry'
 import { massEasingIn } from '../util/mass-easing'
@@ -37,14 +37,15 @@ export const ShapeVisualization: FunctionComponent = () => {
   })
 
   return (
-    <Box
-      ref={boxRef}
-      sx={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden' }}
-    >
+    <div ref={boxRef} className="flex h-full w-full overflow-hidden">
       {width != null && height != null ? (
-        <ShapeVisualizationCanvas width={width} height={height - 10} padding={100} />
+        <ShapeVisualizationCanvas
+          width={width}
+          height={height - 10}
+          padding={100}
+        />
       ) : null}
-    </Box>
+    </div>
   )
 }
 
@@ -54,19 +55,17 @@ type ShapeVisualizationCanvasProps = {
   padding: number
 }
 
-const ShapeVisualizationCanvas: FunctionComponent<ShapeVisualizationCanvasProps> = ({
-  width,
-  height,
-  padding,
-}) => {
+const ShapeVisualizationCanvas: FunctionComponent<
+  ShapeVisualizationCanvasProps
+> = ({ width, height, padding }) => {
   const { shapeMode } = useAtomValue(displaySettingsAtom)
 
   const { cursorMoveMode, cursorMass } = useAtomValue(displaySettingsAtom)
-  const theme = useTheme()
-
-  const backColor = theme.drawPalette.back
-  const mainColor = theme.drawPalette.main
-  const cursorColor = theme.drawPalette.cursor
+  const {
+    back: backColor,
+    main: mainColor,
+    cursor: cursorColor,
+  } = useDrawPalette()
 
   const largestPossibleSquare = useMemo(
     () => getLargestPossibleSquare(width - 2, height - 2, padding),
@@ -74,7 +73,8 @@ const ShapeVisualizationCanvas: FunctionComponent<ShapeVisualizationCanvasProps>
   )
 
   const cursorEasing = useMemo(
-    () => (cursorMoveMode === 'eased' ? massEasingIn(cursorMass) : Easings.linear),
+    () =>
+      cursorMoveMode === 'eased' ? massEasingIn(cursorMass) : Easings.linear,
     [cursorMoveMode, cursorMass]
   )
 
@@ -90,8 +90,14 @@ const ShapeVisualizationCanvas: FunctionComponent<ShapeVisualizationCanvasProps>
   const divisionDotRadius = useMemo(() => baseSquareSide / 50, [baseSquareSide])
   const cursorDotRadius = useMemo(() => baseSquareSide / 50, [baseSquareSide])
   const centerDotRadius = useMemo(() => baseSquareSide / 80, [baseSquareSide])
-  const flashDivisionRadiusMultiplicator = useMemo(() => baseSquareSide / 5, [baseSquareSide])
-  const flashSubdivisionRadiusMultiplicator = useMemo(() => baseSquareSide / 10, [baseSquareSide])
+  const flashDivisionRadiusMultiplicator = useMemo(
+    () => baseSquareSide / 5,
+    [baseSquareSide]
+  )
+  const flashSubdivisionRadiusMultiplicator = useMemo(
+    () => baseSquareSide / 10,
+    [baseSquareSide]
+  )
   const flashSizeMultiplicator = useMemo(() => 1.8, [])
 
   const VisualizationCoreComponent = useMemo<ShapeVisualizationType>(

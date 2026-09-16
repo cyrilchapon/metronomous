@@ -1,11 +1,10 @@
-import { Box, CssBaseline, GlobalStyles, ThemeProvider } from '@mui/material'
 import { Provider as JotaiProvider, useAtom, useAtomValue } from 'jotai'
-import { FunctionComponent, PropsWithChildren, useMemo } from 'react'
 import { AppDrawer } from './components/app-drawer'
 import { ControlBar } from './components/control-bar'
 import { Navbar } from './components/navbar'
-import { NavbarOffset } from './components/navbar-offset'
-import { usePaletteMode } from './hooks/use-actual-color-mode'
+import { ShapeVisualization } from './components/shape-visualization'
+import { useApplyColorMode } from './hooks/use-apply-color-mode'
+import { displaySettingsAtom } from './state/display-settings'
 import {
   updateMetronomeBpmEffect,
   updateMetronomeMutedEffect,
@@ -13,38 +12,20 @@ import {
   updateMetronomeSignatureEffect,
   updateMetronomeSubdivisionEffect,
 } from './state/metronome'
-import { displaySettingsAtom } from './state/display-settings'
-import { globalStyles } from './style/global-styles'
-import { getTheme } from './style/theme'
-import { ShapeVisualization } from './components/shape-visualization'
 import { store } from './state/store'
 // import { Debugger } from './components/debugger'
 
 const App = () => {
   return (
     <JotaiProvider store={store}>
-      <Theme>
-        <AppRoot />
-      </Theme>
+      <AppRoot />
     </JotaiProvider>
   )
 }
 
-const Theme: FunctionComponent<PropsWithChildren> = ({ children }) => {
-  const paletteMode = usePaletteMode()
-  const theme = useMemo(() => getTheme(paletteMode), [paletteMode])
-
-  return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline enableColorScheme />
-      <GlobalStyles styles={globalStyles} />
-
-      {children}
-    </ThemeProvider>
-  )
-}
-
 const AppRoot = () => {
+  useApplyColorMode()
+
   useAtom(updateMetronomeRunningEffect)
   useAtom(updateMetronomeBpmEffect)
   useAtom(updateMetronomeSignatureEffect)
@@ -57,38 +38,21 @@ const AppRoot = () => {
     <>
       <AppDrawer />
 
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          width: '100%',
-          height: '100%',
-        }}
-      >
-        <Box
-          sx={{ display: 'flex', flex: '1 1 auto', height: '100%', overflow: 'hidden' }}
-        >
+      <div className="flex h-full w-full flex-col">
+        <div className="flex h-full flex-1 overflow-hidden">
           {showVisualization ? <ShapeVisualization /> : null}
-        </Box>
+        </div>
 
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            marginTop: 'auto',
-            marginBottom: 3,
-          }}
-        >
-          <ControlBar sx={{ width: 'fit-content' }} />
-        </Box>
+        <div className="mt-auto mb-6 flex justify-center">
+          <ControlBar />
+        </div>
 
         {/* <Debugger /> */}
 
-        <Box>
-          <Navbar sx={{ top: 'auto', bottom: 0 }} />
-          <NavbarOffset />
-        </Box>
-      </Box>
+        {/* Spacer for the fixed navbar below. */}
+        <div className="h-14 shrink-0" />
+        <Navbar />
+      </div>
     </>
   )
 }
