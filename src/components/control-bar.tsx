@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { FunctionComponent } from 'react'
 import { useHoldToRepeat } from '../hooks/use-hold-to-repeat'
-import { displaySettingsAtom } from '../state/display-settings'
+import { showVisualizationAtom } from '../state/global-settings'
 import {
   metronomeBpmAtom,
   metronomeMutedAtom,
@@ -32,7 +32,9 @@ export const ControlBar: FunctionComponent<ControlBarProps> = ({
   const [metronomeRunning, setMetronomeRunning] = useAtom(metronomeRunningAtom)
   const [metronomeBpm, setMetronomeBpm] = useAtom(metronomeBpmAtom)
   const [metronomeMuted, setMetronomeMuted] = useAtom(metronomeMutedAtom)
-  const [displaySettings, setDisplaySettings] = useAtom(displaySettingsAtom)
+  const [showVisualization, setShowVisualization] = useAtom(
+    showVisualizationAtom
+  )
 
   const decrementBpm = () =>
     setMetronomeBpm((prevState) => clampMetronomeBpm(prevState - 1))
@@ -85,18 +87,13 @@ export const ControlBar: FunctionComponent<ControlBarProps> = ({
         variant="ghost"
         size="icon"
         aria-label={
-          displaySettings.showVisualization
+          showVisualization
             ? 'Masquer la visualisation'
             : 'Afficher la visualisation'
         }
-        onClick={() =>
-          setDisplaySettings((prevState) => ({
-            ...prevState,
-            showVisualization: !prevState.showVisualization,
-          }))
-        }
+        onClick={() => setShowVisualization((prevState) => !prevState)}
       >
-        {displaySettings.showVisualization ? <Eye /> : <EyeOff />}
+        {showVisualization ? <Eye /> : <EyeOff />}
       </Button>
 
       <Button

@@ -1,4 +1,5 @@
-import { useAtom } from 'jotai'
+import { useAtom, useAtomValue } from 'jotai'
+import { RESET } from 'jotai/utils'
 import {
   Circle,
   CircleDot,
@@ -8,6 +9,7 @@ import {
   Minus,
   Pentagon,
   Radar,
+  RotateCcw,
   Waves,
 } from 'lucide-react'
 import { FunctionComponent } from 'react'
@@ -34,12 +36,14 @@ import { easingMasses, isEasingMass } from '../util/mass-easing'
 import { metronomeSignatures, metronomeSubdivisions } from '../util/metronome'
 import { ColorModeToggleGroup } from './color-mode-toggle-group'
 import { SubdivisionIcon } from './subdivision-icon'
+import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import {
   Sheet,
   SheetContent,
   SheetDescription,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
@@ -64,9 +68,20 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
 
   const cursorEasingDisabled = displaySettings.cursorMoveMode !== 'eased'
 
+  // Persistence took away the implicit reset that reloading the page used
+  // to be, so a visualization fiddled into a corner needs a way back.
+  //
+  // What the button offers is "drop the stored config", so it asks whether
+  // one is stored — not whether the values differ from the defaults. The
+  // two part company exactly where it matters: a config that was changed
+  // and changed back holds today's defaults and would pin its user to
+  // them, and an unreadable one reads *as* the defaults while being the
+  // one most worth dropping.
+  const displaySettingsStored = useAtomValue(displaySettingsAtom.storedAtom)
+
   return (
     <Sheet open={menuDrawerOpen} onOpenChange={setMenuDrawerOpen} {...props}>
-      <SheetContent side="right" className="overflow-y-auto">
+      <SheetContent side="right">
         <SheetHeader>
           <SheetTitle>Réglages</SheetTitle>
           <SheetDescription>
@@ -74,7 +89,7 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex flex-col gap-6 px-4 pb-6">
+        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-4 pb-6">
           <section className="flex flex-col gap-4">
             <h3 className="font-heading text-base font-medium">Métronome</h3>
 
@@ -352,6 +367,22 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
             <ColorModeToggleGroup size="sm" />
           </section>
         </div>
+
+        <SheetFooter className="border-border border-t">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!displaySettingsStored}
+            onClick={() => setDisplaySettings(RESET)}
+          >
+            <RotateCcw />
+            Réinitialiser la visualisation
+          </Button>
+          <p className="text-muted-foreground text-xs">
+            Fond, curseur et flash. Le tempo, la signature et le mode de couleur
+            ne sont pas touchés.
+          </p>
+        </SheetFooter>
       </SheetContent>
     </Sheet>
   )
