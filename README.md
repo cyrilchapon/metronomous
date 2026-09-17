@@ -103,8 +103,9 @@ builds still have in common — and writing from the older build puts the
 fields it didn't understand back, under the version they came with, so a
 stale tab can't truncate a newer config or send it back through
 migrations it has already been through. `version` + `migrations` are only
-for what field-level validation can't absorb — a rename, a change of unit, a value whose *meaning*
-changed while its type stayed valid. Bump the version and add the
+for what field-level validation can't absorb — a rename, a change of
+unit, a value whose *meaning* changed while its type stayed valid. Bump
+the version and add the
 migration keyed by the version it migrates *from*; a stored version with
 no way forward falls back to the defaults, like anything else unreadable
 (absent, not JSON, storage denied by the browser). Every fallback but
