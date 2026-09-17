@@ -1,6 +1,5 @@
-import { useAtom } from 'jotai'
+import { useAtom, useAtomValue } from 'jotai'
 import { RESET } from 'jotai/utils'
-import { isEqual } from 'lodash-es'
 import {
   Circle,
   CircleDot,
@@ -22,7 +21,6 @@ import {
   ShapeMode,
   cursorModes,
   cursorMoveModes,
-  defaultDisplaySettings,
   displaySettingsAtom,
   flashModes,
   shapeDivisions,
@@ -69,12 +67,17 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
   )
 
   const cursorEasingDisabled = displaySettings.cursorMoveMode !== 'eased'
+
   // Persistence took away the implicit reset that reloading the page used
   // to be, so a visualization fiddled into a corner needs a way back.
-  const displaySettingsUntouched = isEqual(
-    displaySettings,
-    defaultDisplaySettings
-  )
+  //
+  // What the button offers is "drop the stored config", so it asks whether
+  // one is stored — not whether the values differ from the defaults. The
+  // two part company exactly where it matters: a config that was changed
+  // and changed back holds today's defaults and would pin its user to
+  // them, and an unreadable one reads *as* the defaults while being the
+  // one most worth dropping.
+  const displaySettingsStored = useAtomValue(displaySettingsAtom.storedAtom)
 
   return (
     <Sheet open={menuDrawerOpen} onOpenChange={setMenuDrawerOpen} {...props}>
@@ -369,7 +372,7 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
           <Button
             variant="outline"
             size="sm"
-            disabled={displaySettingsUntouched}
+            disabled={!displaySettingsStored}
             onClick={() => setDisplaySettings(RESET)}
           >
             <RotateCcw />

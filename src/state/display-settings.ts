@@ -26,8 +26,7 @@ export type DisplaySettings = {
   flashMode: FlashMode[]
 }
 
-/** Exported so the interface can tell whether there is anything to reset. */
-export const defaultDisplaySettings: DisplaySettings = {
+const defaultDisplaySettings: DisplaySettings = {
   shapeMode: 'circle',
   shapeSubdivisions: 'subdivisions',
   // Only ever read in `eased` mode, so this is really "what the user gets

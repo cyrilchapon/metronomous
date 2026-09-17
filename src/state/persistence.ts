@@ -1,4 +1,4 @@
-import { WritableAtom } from 'jotai'
+import { Atom, atom, WritableAtom } from 'jotai'
 import { atomWithStorage, RESET } from 'jotai/utils'
 import { SetStateAction } from 'react'
 import { z } from 'zod'
@@ -185,7 +185,17 @@ export type PersistedConfigAtom<T> = WritableAtom<
   T,
   [SetStateAction<T> | typeof RESET],
   void
->
+> & {
+  /**
+   * Whether anything is stored under this config's key — which is a
+   * different question from whether its values differ from the defaults,
+   * and the one a reset is actually about. A key that happens to hold
+   * today's defaults still pins its user to them, and a key whose every
+   * field is unreadable still decodes to them; comparing values would
+   * call both "nothing to reset" and leave them stuck that way.
+   */
+  storedAtom: Atom<boolean>
+}
 
 /**
  * A config atom backed by `localStorage`: hydrated on the way in, written
@@ -227,6 +237,29 @@ export const persistedConfigAtom = <T extends object>({
   }
 
   /**
+   * What a *newer* build wrote and this one has no schema for, kept aside
+   * with the version it came with. `migrate` already lets the read path
+   * tolerate a config from the future; this is what stops the write path
+   * from truncating it on the way back out — and from stamping a lower
+   * version on it, which would make that newer build replay its migrations
+   * over a config that had already been through them.
+   */
+  let ahead: { version: number; fields: Record<string, unknown> } | null = null
+
+  /**
+   * The stored keys this build has no schema for. Only ever kept when they
+   * come from a newer version: from an equal or older one they are fields
+   * this build has *dropped*, and re-emitting those would keep them alive
+   * forever.
+   */
+  const foreignFields = (storedConfig: unknown): Record<string, unknown> =>
+    typeof storedConfig !== 'object' || storedConfig === null
+      ? {}
+      : Object.fromEntries(
+          Object.entries(storedConfig).filter(([field]) => !(field in defaults))
+        )
+
+  /**
    * The *known* fields the schema had to fall back on. A stored key that
    * isn't a config field at all is one this build has dropped, which is
    * business as usual rather than something to report — see `configSchema`.
@@ -239,6 +272,8 @@ export const persistedConfigAtom = <T extends object>({
         )
 
   const decode = (raw: string | null): T => {
+    ahead = null
+
     // Not a failure: nothing was ever stored (a first visit, or a config
     // just reset).
     if (raw === null) {
@@ -278,6 +313,13 @@ export const persistedConfigAtom = <T extends object>({
       return fallBack('not an object')
     }
 
+    if (stored.data.version > version) {
+      ahead = {
+        version: stored.data.version,
+        fields: foreignFields(migrated.config),
+      }
+    }
+
     const readable = readableFields(parsed.data)
     const unreadable = unreadableFields(migrated.config, readable)
 
@@ -308,19 +350,59 @@ export const persistedConfigAtom = <T extends object>({
     return config
   }
 
-  return atomWithStorage<T>(
+  /**
+   * A same-tab write doesn't fire a `storage` event, so the presence atom
+   * below would miss every write this tab makes. `setItem`/`removeItem`
+   * announce their own.
+   */
+  const storedListeners = new Set<() => void>()
+  const announceStored = () => {
+    storedListeners.forEach((listener) => listener())
+  }
+
+  const storedBaseAtom = atom(readRaw(storageKey) !== null)
+
+  storedBaseAtom.onMount = (setStored) => {
+    const refresh = () => setStored(readRaw(storageKey) !== null)
+
+    // Storage can have moved between this atom's creation — module
+    // evaluation — and whenever something first reads it.
+    refresh()
+
+    storedListeners.add(refresh)
+    // Deliberately unfiltered: `refresh` re-reads this config's own key, so
+    // an event about another one just resolves to the same boolean.
+    window.addEventListener('storage', refresh)
+
+    return () => {
+      storedListeners.delete(refresh)
+      window.removeEventListener('storage', refresh)
+    }
+  }
+
+  const configAtom = atomWithStorage<T>(
     storageKey,
     defaults,
     {
       getItem: (key) => decodeCached(readRaw(key)),
       setItem: (key, config) => {
-        const raw = JSON.stringify({ version, config })
+        // Whatever a newer build had in there goes back in, under the
+        // version it came with — see `ahead`.
+        const raw = JSON.stringify(
+          ahead === null
+            ? { version, config }
+            : { version: ahead.version, config: { ...ahead.fields, ...config } }
+        )
+
         cache = { raw, config }
         writeRaw(key, raw)
+        announceStored()
       },
       removeItem: (key) => {
         cache = null
+        ahead = null
         removeRaw(key)
+        announceStored()
       },
       subscribe: (key, callback) => {
         const onStorage = (event: StorageEvent) => {
@@ -341,4 +423,9 @@ export const persistedConfigAtom = <T extends object>({
     // The whole point: no first frame against the defaults.
     { getOnInit: true }
   )
+
+  return Object.assign(configAtom, {
+    // Read-only from the outside: it reflects storage, it doesn't drive it.
+    storedAtom: atom((get) => get(storedBaseAtom)),
+  })
 }

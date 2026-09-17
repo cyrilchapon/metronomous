@@ -73,6 +73,12 @@ mode and whether the canvas is shown at all alone. Those last two live in
 `global-settings` precisely so that resetting one config wholesale stays
 the whole gesture, with no field singled out in the button's handler.
 
+Because the gesture is "drop the key", anything offering it reads the
+atom's `storedAtom` rather than comparing values to the defaults: a key
+that happens to hold today's defaults still pins its user to them, and an
+unreadable key reads *as* the defaults while being the one most worth
+dropping. Comparing values would call both "nothing to reset".
+
 *No loading state.* `localStorage` is a synchronous API, so a config is
 already in its atom before React renders its first frame — including for
 the pre-render color-mode read in `main.tsx`. Nothing is ever painted
@@ -93,8 +99,11 @@ didn't exist when the config was written, one that has since been dropped,
 and one whose valid values changed each resolve to that field's default
 while the rest of the config survives. Unknown fields are ignored, which
 also means a config written by a newer build is read for whatever the two
-builds still have in common. `version` + `migrations` are only for what
-that can't absorb — a rename, a change of unit, a value whose *meaning*
+builds still have in common — and writing from the older build puts the
+fields it didn't understand back, under the version they came with, so a
+stale tab can't truncate a newer config or send it back through
+migrations it has already been through. `version` + `migrations` are only
+for what field-level validation can't absorb — a rename, a change of unit, a value whose *meaning*
 changed while its type stayed valid. Bump the version and add the
 migration keyed by the version it migrates *from*; a stored version with
 no way forward falls back to the defaults, like anything else unreadable
