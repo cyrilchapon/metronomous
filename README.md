@@ -65,11 +65,24 @@ it exactly like the plain `atom<T>()` it replaces, `focusAtom` included. A
 change made in another tab is picked up while the app is open, through the
 `storage` event.
 
+Writing jotai's `RESET` to one *removes* its key rather than storing the
+current defaults in it, so a config that was reset goes on following the
+defaults as they change — which is what the drawer's "Réinitialiser la
+visualisation" does to `display-settings`, leaving the tempo and the color
+mode alone.
+
 *No loading state.* `localStorage` is a synchronous API, so a config is
 already in its atom before React renders its first frame — including for
 the pre-render color-mode read in `main.tsx`. Nothing is ever painted
 against the defaults and then corrected, so there is nothing to gate
 behind a splash screen.
+
+The browser does paint the page's *background* before any module runs,
+though, so the color mode is applied a second time — first, and from the
+same stored setting — by an inline script in `index.html`. That is the one
+place that reads a persisted config without going through
+`persistedConfigAtom`, and the only one allowed to: see the comment there
+for what it is allowed to get wrong.
 
 *Changing a config's shape.* A config is stored as
 `{ version, config }` and read back through a zod schema in which **every
@@ -83,7 +96,11 @@ that can't absorb — a rename, a change of unit, a value whose *meaning*
 changed while its type stayed valid. Bump the version and add the
 migration keyed by the version it migrates *from*; a stored version with
 no way forward falls back to the defaults, like anything else unreadable
-(absent, not JSON, storage denied by the browser).
+(absent, not JSON, storage denied by the browser). Every fallback but
+"nothing stored" warns on the console, in production too: it is the only
+way a user quietly loses settings, so "my settings reset themselves" has
+to leave a trace. The decode cache means a given stored value is reported
+once, not on every read.
 
 Each config declares its schema as an object literal `satisfies
 ConfigShape<T>`, which is what keeps validation and the runtime type from

@@ -27,7 +27,8 @@ export type DisplaySettings = {
   showVisualization: boolean
 }
 
-const defaultDisplaySettings: DisplaySettings = {
+/** Exported so the interface can tell whether there is anything to reset. */
+export const defaultDisplaySettings: DisplaySettings = {
   shapeMode: 'circle',
   shapeSubdivisions: 'subdivisions',
   // Only ever read in `eased` mode, so this is really "what the user gets

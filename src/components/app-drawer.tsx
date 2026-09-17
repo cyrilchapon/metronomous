@@ -1,4 +1,6 @@
 import { useAtom } from 'jotai'
+import { RESET } from 'jotai/utils'
+import { isEqual } from 'lodash-es'
 import {
   Circle,
   CircleDot,
@@ -8,6 +10,7 @@ import {
   Minus,
   Pentagon,
   Radar,
+  RotateCcw,
   Waves,
 } from 'lucide-react'
 import { FunctionComponent } from 'react'
@@ -19,6 +22,7 @@ import {
   ShapeMode,
   cursorModes,
   cursorMoveModes,
+  defaultDisplaySettings,
   displaySettingsAtom,
   flashModes,
   shapeDivisions,
@@ -34,6 +38,7 @@ import { easingMasses, isEasingMass } from '../util/mass-easing'
 import { metronomeSignatures, metronomeSubdivisions } from '../util/metronome'
 import { ColorModeToggleGroup } from './color-mode-toggle-group'
 import { SubdivisionIcon } from './subdivision-icon'
+import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -63,6 +68,12 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
   )
 
   const cursorEasingDisabled = displaySettings.cursorMoveMode !== 'eased'
+  // Persistence took away the implicit reset that reloading the page used
+  // to be, so a visualization fiddled into a corner needs a way back.
+  const displaySettingsUntouched = isEqual(
+    displaySettings,
+    defaultDisplaySettings
+  )
 
   return (
     <Sheet open={menuDrawerOpen} onOpenChange={setMenuDrawerOpen} {...props}>
@@ -350,6 +361,24 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
           <section className="grid gap-2">
             <Label>Mode de couleur</Label>
             <ColorModeToggleGroup size="sm" />
+          </section>
+
+          <Separator />
+
+          <section className="grid gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={displaySettingsUntouched}
+              onClick={() => setDisplaySettings(RESET)}
+            >
+              <RotateCcw />
+              Réinitialiser la visualisation
+            </Button>
+            <p className="text-muted-foreground text-xs">
+              Fond, curseur et flash. Le tempo, la signature et le mode de
+              couleur ne sont pas touchés.
+            </p>
           </section>
         </div>
       </SheetContent>

@@ -1,5 +1,5 @@
-import { atom, WritableAtom } from 'jotai'
-import { atomWithStorage } from 'jotai/utils'
+import { WritableAtom } from 'jotai'
+import { atomWithStorage, RESET } from 'jotai/utils'
 import { SetStateAction } from 'react'
 import { z } from 'zod'
 
@@ -175,9 +175,21 @@ export type PersistedConfigOptions<T extends object> = {
 }
 
 /**
- * A config atom backed by `localStorage`: reads and writes exactly like the
- * `atom<T>()` it replaces (`focusAtom` included), and writes through to
- * storage on every change.
+ * Reads and writes exactly like the `atom<T>()` it replaces — `focusAtom`
+ * included — with one move of its own: writing jotai's `RESET` to it drops
+ * the stored config. That *removes* the key rather than storing today's
+ * defaults in it, so a config that has been reset goes on following the
+ * defaults as they change, exactly like one that was never stored.
+ */
+export type PersistedConfigAtom<T> = WritableAtom<
+  T,
+  [SetStateAction<T> | typeof RESET],
+  void
+>
+
+/**
+ * A config atom backed by `localStorage`: hydrated on the way in, written
+ * through to storage on every change, and resettable with `RESET`.
  *
  * **It hydrates synchronously, at module evaluation** — `localStorage` is a
  * synchronous API, so the stored config is already in the atom before
@@ -188,7 +200,8 @@ export type PersistedConfigOptions<T extends object> = {
  * Anything that can go wrong with a stored config — absent, not JSON, not
  * a config at all, written by a version we can't migrate from — resolves
  * to the defaults; anything wrong with a single *field* resolves to that
- * field's default.
+ * field's default. Every such fallback but "nothing stored" is reported on
+ * the console, since it is the only way settings quietly disappear.
  */
 export const persistedConfigAtom = <T extends object>({
   key,
@@ -196,8 +209,38 @@ export const persistedConfigAtom = <T extends object>({
   defaults,
   schema,
   migrations = {},
-}: PersistedConfigOptions<T>): WritableAtom<T, [SetStateAction<T>], void> => {
+}: PersistedConfigOptions<T>): PersistedConfigAtom<T> => {
+  const storageKey = `${storageKeyPrefix}${key}`
+
+  /**
+   * Falling back is by design, but it is also the only way a user silently
+   * loses settings they had, so it says so out loud — in production too,
+   * where it's the one thing that makes "my settings reset themselves"
+   * diagnosable from a console. The cache below means a given stored value
+   * is only ever decoded, and so reported, once.
+   */
+  const fallBack = (reason: string): T => {
+    console.warn(
+      `[metronomous] Ignoring the stored "${storageKey}" config (${reason}). Falling back to its defaults.`
+    )
+    return defaults
+  }
+
+  /**
+   * The *known* fields the schema had to fall back on. A stored key that
+   * isn't a config field at all is one this build has dropped, which is
+   * business as usual rather than something to report — see `configSchema`.
+   */
+  const unreadableFields = (storedConfig: unknown, readable: Partial<T>) =>
+    typeof storedConfig !== 'object' || storedConfig === null
+      ? []
+      : Object.keys(storedConfig).filter(
+          (field) => field in defaults && !(field in readable)
+        )
+
   const decode = (raw: string | null): T => {
+    // Not a failure: nothing was ever stored (a first visit, or a config
+    // just reset).
     if (raw === null) {
       return defaults
     }
@@ -207,13 +250,13 @@ export const persistedConfigAtom = <T extends object>({
     try {
       json = JSON.parse(raw)
     } catch {
-      return defaults
+      return fallBack('not JSON')
     }
 
     const stored = storedConfigSchema.safeParse(json)
 
     if (!stored.success) {
-      return defaults
+      return fallBack('not a stored config')
     }
 
     const migrated = migrate(
@@ -224,7 +267,7 @@ export const persistedConfigAtom = <T extends object>({
     )
 
     if (migrated === null) {
-      return defaults
+      return fallBack(`no migration from version ${stored.data.version}`)
     }
 
     const parsed = schema.safeParse(migrated.config)
@@ -232,10 +275,19 @@ export const persistedConfigAtom = <T extends object>({
     // Only a config that isn't an object at all gets here: every *field*
     // carries its own fallback.
     if (!parsed.success) {
-      return defaults
+      return fallBack('not an object')
     }
 
-    return { ...defaults, ...readableFields(parsed.data) }
+    const readable = readableFields(parsed.data)
+    const unreadable = unreadableFields(migrated.config, readable)
+
+    if (unreadable.length > 0) {
+      console.warn(
+        `[metronomous] Ignoring unreadable fields of the stored "${storageKey}" config (${unreadable.join(', ')}). Falling back to their defaults.`
+      )
+    }
+
+    return { ...defaults, ...readable }
   }
 
   // `atomWithStorage` decodes a second time when the atom mounts, and a
@@ -256,8 +308,8 @@ export const persistedConfigAtom = <T extends object>({
     return config
   }
 
-  const storedAtom = atomWithStorage<T>(
-    `${storageKeyPrefix}${key}`,
+  return atomWithStorage<T>(
+    storageKey,
     defaults,
     {
       getItem: (key) => decodeCached(readRaw(key)),
@@ -288,16 +340,5 @@ export const persistedConfigAtom = <T extends object>({
     },
     // The whole point: no first frame against the defaults.
     { getOnInit: true }
-  )
-
-  // Re-exposed without `atomWithStorage`'s `RESET` in its write signature,
-  // so that a persisted config is a drop-in for the plain atom it replaces
-  // (`focusAtom` only accepts the plain one) — nothing in the app resets a
-  // config, and writing `defaults` does the same thing anyway.
-  return atom(
-    (get) => get(storedAtom),
-    (_get, set, update: SetStateAction<T>) => {
-      set(storedAtom, update)
-    }
   )
 }
