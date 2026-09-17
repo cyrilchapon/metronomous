@@ -45,6 +45,7 @@ import {
   Sheet,
   SheetContent,
   SheetDescription,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
@@ -77,7 +78,7 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
 
   return (
     <Sheet open={menuDrawerOpen} onOpenChange={setMenuDrawerOpen} {...props}>
-      <SheetContent side="right" className="overflow-y-auto">
+      <SheetContent side="right">
         <SheetHeader>
           <SheetTitle>Réglages</SheetTitle>
           <SheetDescription>
@@ -85,7 +86,7 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex flex-col gap-6 px-4 pb-6">
+        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-4 pb-6">
           <section className="flex flex-col gap-4">
             <h3 className="font-heading text-base font-medium">Métronome</h3>
 
@@ -362,25 +363,23 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
             <Label>Mode de couleur</Label>
             <ColorModeToggleGroup size="sm" />
           </section>
-
-          <Separator />
-
-          <section className="grid gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={displaySettingsUntouched}
-              onClick={() => setDisplaySettings(RESET)}
-            >
-              <RotateCcw />
-              Réinitialiser la visualisation
-            </Button>
-            <p className="text-muted-foreground text-xs">
-              Fond, curseur et flash. Le tempo, la signature et le mode de
-              couleur ne sont pas touchés.
-            </p>
-          </section>
         </div>
+
+        <SheetFooter className="border-border border-t">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={displaySettingsUntouched}
+            onClick={() => setDisplaySettings(RESET)}
+          >
+            <RotateCcw />
+            Réinitialiser la visualisation
+          </Button>
+          <p className="text-muted-foreground text-xs">
+            Fond, curseur et flash. Le tempo, la signature et le mode de couleur
+            ne sont pas touchés.
+          </p>
+        </SheetFooter>
       </SheetContent>
     </Sheet>
   )
