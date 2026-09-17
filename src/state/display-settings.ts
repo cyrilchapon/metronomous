@@ -1,5 +1,6 @@
-import { atom } from 'jotai'
-import { EasingMass } from '../util/mass-easing'
+import { z } from 'zod'
+import { EasingMass, easingMasses } from '../util/mass-easing'
+import { ConfigShape, configSchema, persistedConfigAtom } from './persistence'
 
 export const shapeModes = ['circle', 'polygon'] as const
 export type ShapeMode = (typeof shapeModes)[number]
@@ -26,7 +27,7 @@ export type DisplaySettings = {
   showVisualization: boolean
 }
 
-const initialDisplaySettings: DisplaySettings = {
+const defaultDisplaySettings: DisplaySettings = {
   shapeMode: 'circle',
   shapeSubdivisions: 'subdivisions',
   cursorMass: 5,
@@ -36,4 +37,23 @@ const initialDisplaySettings: DisplaySettings = {
   showVisualization: true,
 }
 
-export const displaySettingsAtom = atom<DisplaySettings>(initialDisplaySettings)
+/**
+ * Validated against the same tuples the types are built from, so an option
+ * added to (or dropped from) one of them needs nothing here.
+ */
+const displaySettingsShape = {
+  shapeMode: z.enum(shapeModes),
+  shapeSubdivisions: z.enum(shapeDivisions),
+  cursorMass: z.literal(easingMasses),
+  cursorMoveMode: z.enum(cursorMoveModes),
+  cursorMode: z.array(z.enum(cursorModes)),
+  flashMode: z.array(z.enum(flashModes)),
+  showVisualization: z.boolean(),
+} satisfies ConfigShape<DisplaySettings>
+
+export const displaySettingsAtom = persistedConfigAtom({
+  key: 'display-settings',
+  version: 1,
+  defaults: defaultDisplaySettings,
+  schema: configSchema(displaySettingsShape),
+})
