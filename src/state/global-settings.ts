@@ -8,7 +8,11 @@ export type GlobalSettings = {
 }
 
 const defaultGlobalSettings: GlobalSettings = {
-  colorMode: 'dark',
+  // The OS preference, rather than dark for everyone: it is resolved
+  // synchronously (`matchMedia`, both in `main.tsx` and in
+  // `useSystemColorMode`), so honoring it costs no first frame in the
+  // wrong theme — and both themes are designed for.
+  colorMode: 'system',
 }
 
 const globalSettingsShape = {

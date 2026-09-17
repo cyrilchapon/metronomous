@@ -5,6 +5,49 @@
     <link rel="icon" type="image/png" href="/src/assets/metronomous-512-blue.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Metronomous</title>
+
+    <!--
+      The class the whole theme is keyed on has to be on `<html>` before the
+      browser's first paint. That paint happens long before the app's bundle
+      runs — measured at ~44ms against ~180ms for the bundle, and ~100ms
+      against ~875ms on a 6x-throttled CPU — so `applyColorMode` in
+      `main.tsx`, which re-applies exactly this authoritatively, is far too
+      late on its own: a dark-mode visitor would get a white page first.
+      Hence an inline, parser-blocking script.
+
+      This is the one place that reads a persisted config without going
+      through `persistedConfigAtom`, because it has to run before any module
+      does. If the two ever drift apart, this falls through to the OS
+      preference — which is the stored default — and `main.tsx` still applies
+      the real value a moment later: the cost of drifting is the flash this
+      avoids, never a wrong theme.
+    -->
+    <script>
+      ;(() => {
+        let setting = 'system'
+
+        try {
+          const stored = JSON.parse(
+            localStorage.getItem('metronomous:global-settings')
+          )
+          const colorMode = stored?.config?.colorMode
+
+          if (['light', 'dark', 'system'].includes(colorMode)) {
+            setting = colorMode
+          }
+        } catch {
+          // Storage denied, or nothing readable in it: the OS preference.
+        }
+
+        const dark =
+          setting === 'system'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+            : setting === 'dark'
+
+        document.documentElement.classList.toggle('dark', dark)
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light'
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

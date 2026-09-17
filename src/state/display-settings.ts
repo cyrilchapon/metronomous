@@ -30,7 +30,16 @@ export type DisplaySettings = {
 const defaultDisplaySettings: DisplaySettings = {
   shapeMode: 'circle',
   shapeSubdivisions: 'subdivisions',
-  cursorMass: 5,
+  // Only ever read in `eased` mode, so this is really "what the user gets
+  // the moment they flip that switch". The heavier masses park the cursor
+  // next to the previous beat and snap it across at the last instant —
+  // quintic has covered 3% of the way at mid-beat — which reads as a
+  // glitch rather than as inertia. Quadratic (25% at mid-beat) lags
+  // visibly while still tracking the beat it's travelling through.
+  cursorMass: 2,
+  // Constant angular speed: the distance covered *is* the time elapsed,
+  // which is the reading a metronome is there to give. `eased` is the more
+  // spectacular one, but it has to be asked for.
   cursorMoveMode: 'linear',
   cursorMode: ['dot'],
   flashMode: ['divisions'],

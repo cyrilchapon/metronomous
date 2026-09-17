@@ -27,9 +27,15 @@ export type MetronomeState = MetronomeConfig & {
 }
 
 const defaultMetronomeConfig: MetronomeConfig = {
-  bpm: 50,
+  // What every other metronome opens at, and what the transport itself
+  // defaults to. 50 is a Largo: on an app whose whole point is the *moving*
+  // cursor, opening at a crawl undersells it.
+  bpm: 120,
   signature: 4,
-  subdivisions: 2,
+  // Plain quarter notes — one click per beat, which is what "a metronome"
+  // means before the user asks for anything else. Raising this is what the
+  // subdivision dots are for, and they appear as soon as it is raised.
+  subdivisions: 1,
   muted: false,
 }
 
