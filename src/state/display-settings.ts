@@ -24,7 +24,6 @@ export type DisplaySettings = {
   cursorMoveMode: CursorMoveMode
   cursorMode: CursorMode[]
   flashMode: FlashMode[]
-  showVisualization: boolean
 }
 
 /** Exported so the interface can tell whether there is anything to reset. */
@@ -44,10 +43,13 @@ export const defaultDisplaySettings: DisplaySettings = {
   cursorMoveMode: 'linear',
   cursorMode: ['dot'],
   flashMode: ['divisions'],
-  showVisualization: true,
 }
 
 /**
+ * How the visualization is *drawn*. Whether it is drawn at all lives in
+ * `global-settings`, so that resetting this config wholesale doesn't turn
+ * the canvas back on behind the user's back.
+ *
  * Validated against the same tuples the types are built from, so an option
  * added to (or dropped from) one of them needs nothing here.
  */
@@ -58,7 +60,6 @@ const displaySettingsShape = {
   cursorMoveMode: z.enum(cursorMoveModes),
   cursorMode: z.array(z.enum(cursorModes)),
   flashMode: z.array(z.enum(flashModes)),
-  showVisualization: z.boolean(),
 } satisfies ConfigShape<DisplaySettings>
 
 export const displaySettingsAtom = persistedConfigAtom({

@@ -4,7 +4,7 @@ import { ControlBar } from './components/control-bar'
 import { Navbar } from './components/navbar'
 import { ShapeVisualization } from './components/shape-visualization'
 import { useApplyColorMode } from './hooks/use-apply-color-mode'
-import { displaySettingsAtom } from './state/display-settings'
+import { showVisualizationAtom } from './state/global-settings'
 import {
   updateMetronomeBpmEffect,
   updateMetronomeMutedEffect,
@@ -32,7 +32,7 @@ const AppRoot = () => {
   useAtom(updateMetronomeSubdivisionEffect)
   useAtom(updateMetronomeMutedEffect)
 
-  const { showVisualization } = useAtomValue(displaySettingsAtom)
+  const showVisualization = useAtomValue(showVisualizationAtom)
 
   return (
     <>

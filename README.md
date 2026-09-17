@@ -68,8 +68,10 @@ change made in another tab is picked up while the app is open, through the
 Writing jotai's `RESET` to one *removes* its key rather than storing the
 current defaults in it, so a config that was reset goes on following the
 defaults as they change — which is what the drawer's "Réinitialiser la
-visualisation" does to `display-settings`, leaving the tempo and the color
-mode alone.
+visualisation" does to `display-settings`, leaving the tempo, the color
+mode and whether the canvas is shown at all alone. Those last two live in
+`global-settings` precisely so that resetting one config wholesale stays
+the whole gesture, with no field singled out in the button's handler.
 
 *No loading state.* `localStorage` is a synchronous API, so a config is
 already in its atom before React renders its first frame — including for
