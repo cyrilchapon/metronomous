@@ -146,16 +146,23 @@ milliseconds later rather than immediately, because the sequence has already
 handed it the ticks inside Tone's scheduling look-ahead and cutting one of
 those off mid-sample is an audible click.
 
-Everything the metronome plays goes through one shared output — a 120Hz
-high-pass, at 12dB/octave. It exists for `neo`, whose 65Hz fundamental read
-as a bass note rather than as a click, and which is also the part of the
-sound a laptop or a phone cannot reproduce: cutting it is what makes the
-three balance the same way on both kinds of speaker. `clic` and `clave`,
-whose lowest components sit at 800Hz and 1.75kHz, pass through it
-untouched. It is a filter rather than a compressor deliberately — the
-complaint was about where the energy sat, not about how its level moved —
-and it is built per audio context so the graph stays renderable through
-`Tone.Offline`, which is how every level quoted here was obtained.
+`neo` plays through a low cut of its own: a 150Hz high-pass at
+12dB/octave. Its fundamental is a 65Hz sine, and it read as a bass note
+rather than as a click — depth that is also the part a laptop or a phone
+cannot reproduce, which is why three sounds balanced on one kind of speaker
+didn't hold on the other. The filter drops the share of `neo`'s energy
+below 150Hz from 56% to 12%. It is a filter rather than a compressor
+deliberately: the complaint was about where the energy sat, not about how
+its level moved.
+
+It sits on that one voice rather than on a shared output, which is where it
+started. A high-pass removes the low end of a sharp attack, and what is
+left overshoots — so a filter that only subtracts energy still *raises* the
+peak of a percussive sound. Routed through everything, `neo`'s tone control
+was spending `clic`'s peak margin (the tightest of the three) and would
+have started clipping it somewhere past a 140Hz corner. `clic` and `clave`
+have nothing below 800Hz to cut, so cutting `neo` alone costs them nothing
+and leaves the corner free to be chosen on how `neo` sounds.
 
 All three play at the same loudness, set by ear. Matching them on
 A-weighted energy — the obvious measurement, and the one this file used
