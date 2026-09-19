@@ -12,6 +12,9 @@ The interface is in French.
 - **Time signature** — 3/4 through 7/4.
 - **Subdivisions** — quarter, eighth, eighth triplet, sixteenth, sixteenth
   triplet.
+- **Sound** — `neo` (the app's own synthetic click), `clic` (a wind-up
+  metronome's tick) or `clave` (a pair of wooden sticks). All three are
+  synthesized rather than sampled — see *Sounds* below.
 - **Shape** — circle or regular polygon, with the beats (and optionally
   every subdivision) marked around it.
 - **Cursor** — a dot, a radial line, or both. Its motion is either linear or
@@ -120,6 +123,56 @@ drifting: a field of `T` with no schema, a schema for a field that no
 longer exists, and a schema for the wrong type all fail to compile. Values
 that shouldn't outlive a session stay out of the config — the metronome's
 `running` is a separate atom, and `state/global-ui.ts` holds the rest.
+
+**The sounds are synthesized, not sampled.** Each of the three is a handful
+of Tone.js nodes built on the spot in `src/util/metronome-sound.ts` —
+nothing to ship, fetch or decode before the first click, and no sample
+locked to the pitch and level it was recorded at. `neo` is a
+`MembraneSynth`'s pitch-swept sine. `clic` is the two halves a wind-up
+metronome makes its noise with: 4ms of filtered noise for the escapement,
+and a resonant tone two octaves under it for the wooden case. `clave` is a
+struck bar in three parts — the stick's contact, the bar's first overtone at
+2.76x the fundamental (the ratio a free-free bar actually gives, and what
+makes the ear hear wood instead of a tone generator), and the fundamental
+ringing 130ms under both.
+
+What the `Tone.Sequence` carries is a bar of `MetronomeAccent`s —
+`downbeat`, `beat`, `subdivision` — rather than notes and velocities. Every
+voice answers the same three accents in its own terms, so changing the sound
+swaps the voice and leaves the sequence, and the transport's phase in it,
+alone: `Metronome.setSound` is audible on the very next tick, mid-bar,
+without rebuilding anything. The outgoing voice is disposed a few hundred
+milliseconds later rather than immediately, because the sequence has already
+handed it the ticks inside Tone's scheduling look-ahead and cutting one of
+those off mid-sample is an audible click.
+
+`neo` plays through a low cut of its own: a 150Hz high-pass at
+12dB/octave. Its fundamental is a 65Hz sine, and it read as a bass note
+rather than as a click — depth that is also the part a laptop or a phone
+cannot reproduce, which is why three sounds balanced on one kind of speaker
+didn't hold on the other. The filter drops the share of `neo`'s energy
+below 150Hz from 56% to 12%. It is a filter rather than a compressor
+deliberately: the complaint was about where the energy sat, not about how
+its level moved.
+
+It sits on that one voice rather than on a shared output, which is where it
+started. A high-pass removes the low end of a sharp attack, and what is
+left overshoots — so a filter that only subtracts energy still *raises* the
+peak of a percussive sound. Routed through everything, `neo`'s tone control
+was spending `clic`'s peak margin (the tightest of the three) and would
+have started clipping it somewhere past a 140Hz corner. `clic` and `clave`
+have nothing below 800Hz to cut, so cutting `neo` alone costs them nothing
+and leaves the corner free to be chosen on how `neo` sounds.
+
+All three play at the same loudness, set by ear. Matching them on
+A-weighted energy — the obvious measurement, and the one this file used
+first — put them within 0.05dB of each other and sounded wrong: from there
+the clave had to come down another 8dB. A-weighted energy models a steady
+tone, while these are transients of very different shapes, and a pitched
+130ms ring reads far louder than a broadband 50ms knock carrying the same
+energy. What the measurement still decides is the ceiling: the clic's
+downbeat peaks around -1.5dBFS, which is what stops `clicVolume` going
+much higher. See the note above `createMetronomeVoice`.
 
 **The canvas reads its colors from CSS.** PixiJS can't read the theme, so
 the visualization's palette is declared as `--metronome-*` custom properties

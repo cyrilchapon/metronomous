@@ -10,6 +10,7 @@ import {
   MetronomeSubdivision,
   metronomeSubdivisions,
 } from '../util/metronome'
+import { MetronomeSound, metronomeSounds } from '../util/metronome-sound'
 import { ConfigShape, configSchema, persistedConfigAtom } from './persistence'
 import { store } from './store'
 import * as Tone from 'tone'
@@ -19,6 +20,7 @@ export type MetronomeConfig = {
   bpm: number
   signature: MetronomeSignature
   subdivisions: MetronomeSubdivision
+  sound: MetronomeSound
   muted: boolean
 }
 
@@ -36,6 +38,10 @@ const defaultMetronomeConfig: MetronomeConfig = {
   // means before the user asks for anything else. Raising this is what the
   // subdivision dots are for, and they appear as soon as it is raised.
   subdivisions: 1,
+  // The sound the app has always clicked with. The other two are there for
+  // ears that want a mechanical metronome or a pair of claves instead; this
+  // one is the app's own.
+  sound: 'neo',
   muted: false,
 }
 
@@ -46,6 +52,7 @@ const metronomeConfigShape = {
   bpm: z.number().transform((bpm) => clampMetronomeBpm(Math.round(bpm))),
   signature: z.literal(metronomeSignatures),
   subdivisions: z.literal(metronomeSubdivisions),
+  sound: z.enum(metronomeSounds),
   muted: z.boolean(),
 } satisfies ConfigShape<MetronomeConfig>
 
@@ -79,6 +86,9 @@ export const metronomeSubdivisionAtom = focusAtom(
   metronomeConfigAtom,
   (optic) => optic.prop('subdivisions')
 )
+export const metronomeSoundAtom = focusAtom(metronomeConfigAtom, (optic) =>
+  optic.prop('sound')
+)
 export const metronomeMutedAtom = focusAtom(metronomeConfigAtom, (optic) =>
   optic.prop('muted')
 )
@@ -94,7 +104,8 @@ const initialConfig = store.get(metronomeConfigAtom)
 export const metronome = new Metronome(
   transport,
   initialConfig.signature,
-  initialConfig.subdivisions
+  initialConfig.subdivisions,
+  initialConfig.sound
 )
 
 export const updateMetronomeBpmEffect = atomEffect((get) => {
@@ -120,6 +131,11 @@ export const updateMetronomeSignatureEffect = atomEffect((get) => {
 export const updateMetronomeSubdivisionEffect = atomEffect((get) => {
   const subdivisions = get(metronomeSubdivisionAtom)
   metronome.setSubdivisions(subdivisions)
+})
+
+export const updateMetronomeSoundEffect = atomEffect((get) => {
+  const sound = get(metronomeSoundAtom)
+  metronome.setSound(sound)
 })
 
 export const updateMetronomeMutedEffect = atomEffect((get) => {
