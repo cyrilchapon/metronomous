@@ -61,9 +61,13 @@ const barOvertone = 2.76
  * *inside* a voice (the clic's escapement against its case, the clave's
  * overtone against its fundamental) is written as an offset from one
  * number and survives a level change.
+ *
+ * `clicVolume` is the one that isn't free: it is already as high as the
+ * clic's peaks allow. The other two are set down to meet it.
  */
 const clicVolume = -1.8
-const claveVolume = -4.5
+const claveVolume = -8.3
+const neoVolume = -3.8
 
 /**
  * A live instance of one sound: its audio nodes, already connected to the
@@ -81,12 +85,14 @@ export type MetronomeVoice = {
 }
 
 /**
- * The original sound, unchanged: a `MembraneSynth`'s pitch-swept sine, low
- * and round, with the downbeat set apart by pitch and the subdivisions by
- * level.
+ * The original sound: a `MembraneSynth`'s pitch-swept sine, low and round,
+ * with the downbeat set apart by pitch and the subdivisions by level.
+ *
+ * Note for note what it has always been — the trim is the only thing that
+ * has moved, and it moved for the other two's sake.
  */
 const createNeoVoice = (): MetronomeVoice => {
-  const synth = new Tone.MembraneSynth().toDestination()
+  const synth = new Tone.MembraneSynth({ volume: neoVolume }).toDestination()
 
   const notes: AccentValues<AccentNote> = {
     downbeat: { note: 'A2', velocity: 0.8 },
@@ -114,8 +120,9 @@ const createNeoVoice = (): MetronomeVoice => {
  * where the first version went wrong: it is nearly all peak and very
  * little energy, so it has to be kept quiet to avoid clipping and reads
  * as a hiss with a gate on it rather than as a thing ticking. The tone
- * underneath is what gives the click a body to be heard through, and what
- * lets the whole voice sit within a few dB of the others.
+ * underneath is what gives the click a body to be heard through — and
+ * even so, this is the voice that runs out of headroom first and sets the
+ * level the other two are trimmed down to.
  */
 const createClicVoice = (): MetronomeVoice => {
   const filter = new Tone.Filter({
@@ -233,24 +240,25 @@ const createClaveVoice = (): MetronomeVoice => {
  * be triggered. The caller owns it: exactly one voice is alive at a time
  * (see `Metronome.setSound`), and it is the caller's to dispose.
  *
- * The trims above are what put the three within earshot of one another:
- * three sounds this different are nowhere near the same level at the same
- * velocity, and changing the sound isn't meant to change how loud the
+ * The trims above are what put the three at the same loudness: three
+ * sounds this different are nowhere near the same level at the same
+ * velocity, and changing the sound is not meant to change how loud the
  * metronome is. They were set by rendering a beat of each offline, six
  * times over — a noise transient's peak moves a few dB from one render to
  * the next — and comparing A-weighted energy across the first ~180ms, i.e.
- * how loud they *sound* rather than how high they peak. That lands `clave`
- * at -22.6dB against `neo`'s -22.6dB and `clic` at -26.4dB, with the worst
- * peak of any accent at -1.9dBFS.
+ * how loud they *sound* rather than how high they peak.
  *
- * `clic` is the one that doesn't quite make it, and the reason is worth
- * keeping: a transient is nearly all peak and very little energy, so the
- * shorter and noisier a click is, the more headroom it burns to be heard.
- * The first version of it was 12dB down on `neo` for exactly that reason.
- * Giving it a resonant body to ring through bought back most of the gap.
+ * `clic` is the one that sets the level, and it is worth knowing why: a
+ * transient is nearly all peak and very little energy, so the shorter and
+ * noisier a click is, the more headroom it burns to be heard. Even with a
+ * resonant body to ring through — which is most of what the escapement's
+ * chiff is sitting on — it runs out of room at -26.4dB, where `neo` would
+ * happily play 4dB louder. So `neo` and `clave` are set *down* to meet it,
+ * rather than `clic` being left the quiet one: a metronome whose volume
+ * jumps when you change its sound is a broken metronome, and the fix costs
+ * a few dB of a level the user sets anyway.
  *
- * `neo` is the fixed point of all this — it is what the app has always
- * sounded like, and it carries no trim at all.
+ * All three now land within 0.05dB of -26.4dB, worst peak -1.7dBFS.
  */
 export const createMetronomeVoice = (sound: MetronomeSound): MetronomeVoice => {
   switch (sound) {

@@ -146,10 +146,12 @@ milliseconds later rather than immediately, because the sequence has already
 handed it the ticks inside Tone's scheduling look-ahead and cutting one of
 those off mid-sample is an audible click.
 
-Their levels were matched by rendering a beat of each offline and comparing
-A-weighted energy, not peak amplitude — see the note above
-`createMetronomeVoice` for the numbers, and for why a click costs more
-headroom per unit of loudness than anything else here.
+All three play at the same loudness, matched by rendering a beat of each
+offline and comparing A-weighted energy rather than peak amplitude. `clic`
+is what sets that level: a transient is nearly all peak and very little
+energy, so it runs out of headroom while the other two still have room, and
+they are trimmed *down* to meet it rather than left louder. See the note
+above `createMetronomeVoice` for the numbers.
 
 **The canvas reads its colors from CSS.** PixiJS can't read the theme, so
 the visualization's palette is declared as `--metronome-*` custom properties
