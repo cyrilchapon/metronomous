@@ -85,6 +85,18 @@ export type MetronomeVoice = {
    * is why the voices below use `setValueAtTime` and not `.value =`.
    */
   trigger: (time: number, accent: MetronomeAccent) => void
+  /**
+   * How long this voice keeps sounding after its last `trigger`, in
+   * milliseconds — the release its envelopes still owe, plus the note they
+   * are released from.
+   *
+   * It lives here because it is a property of the envelopes right next to
+   * it, and `Metronome.setSound` has to wait it out before disposing the
+   * voice it is replacing. As a constant over there it was a guess about
+   * this file, and a wrong one: `neo` takes Tone's default 1.4s release
+   * and was being cut off at 350ms.
+   */
+  tailMs: number
   dispose: () => void
 }
 
@@ -156,6 +168,11 @@ const createNeoVoice = (): MetronomeVoice => {
       const { note, velocity } = notes[accent]
       synth.triggerAttackRelease(note, '64n', time, velocity)
     },
+    // The one voice that keeps Tone's default envelope, whose 1.4s release
+    // really does run its full length: `triggerRelease` ramps with a time
+    // constant of `ln(release + 1) / ln(200)` and only reaches zero at the
+    // end. A hair over it, for the note it is released from.
+    tailMs: 1500,
     dispose: () => {
       synth.dispose()
       lowCut.dispose()
@@ -190,6 +207,8 @@ const createClicVoice = (): MetronomeVoice => {
   }).connect(filter)
 
   const body = new Tone.MembraneSynth({
+    // A multiplier, not octaves — see the note in `createClaveVoice`. The
+    // case starts a fifth above its pitch (1152Hz) and falls onto it.
     pitchDecay: 0.005,
     octaves: 1.2,
     oscillator: { type: 'sine' },
@@ -210,6 +229,8 @@ const createClicVoice = (): MetronomeVoice => {
       chiff.triggerAttackRelease(0.004, time, velocity)
       body.triggerAttackRelease(note, 0.03, time, velocity)
     },
+    // 30ms of hold and 30ms of release on the body, the chiff long gone.
+    tailMs: 100,
     dispose: () => {
       chiff.dispose()
       body.dispose()
@@ -223,6 +244,13 @@ const createClicVoice = (): MetronomeVoice => {
  * contact (3ms of noise), the bar's first overtone, and the fundamental
  * ringing under both.
  *
+ * The pitch envelope is a short bend *up* into the fundamental rather
+ * than a drop onto it — see the note on `octaves` below, which is a
+ * multiplier rather than a count of octaves. Over 2.5ms the direction is
+ * an attack transient either way, and this is the version that was tuned
+ * by ear; a downward blow would want `octaves` above 1 and another pass
+ * with the sliders.
+ *
  * The overtone is the whole point. A free-free bar's first partial sits
  * at 2.76x its fundamental — an interval that belongs to no scale, which
  * is exactly why the ear hears wood rather than a tone generator. A
@@ -233,8 +261,11 @@ const createClicVoice = (): MetronomeVoice => {
  */
 const createClaveVoice = (): MetronomeVoice => {
   const body = new Tone.MembraneSynth({
-    // A short drop into the fundamental — the stick's blow, not a
-    // portamento you could hum.
+    // `octaves` is a plain multiplier on where the sweep *starts*, not a
+    // number of octaves: `setNote` sets the oscillator to `note * octaves`
+    // and ramps it to `note` over `pitchDecay`. At 0.7 this one starts
+    // below its fundamental (1225Hz) and rises into it over 2.5ms — the
+    // blow bending up into the bar's pitch rather than down onto it.
     pitchDecay: 0.0025,
     octaves: 0.7,
     oscillator: { type: 'sine' },
@@ -278,6 +309,8 @@ const createClaveVoice = (): MetronomeVoice => {
       )
       contact.triggerAttackRelease(0.003, time, velocity)
     },
+    // 80ms of hold and 50ms of release on the body, the longest of the three.
+    tailMs: 200,
     dispose: () => {
       body.dispose()
       overtone.dispose()
@@ -309,11 +342,12 @@ const createClaveVoice = (): MetronomeVoice => {
  * The last dB of that came off `clic` on a laptop and a phone, where the
  * balance set on a bigger speaker had it sitting proud. Both ends of that
  * are `neo`: its fundamental is a 65Hz sine that a small speaker barely
- * reproduces, so it loses more than the others do on the way out. If the
- * three ever need to hold on *both* kinds of output at once, the lever is
- * a high-pass on `neo` — giving it presence where a small speaker can
- * actually play it — rather than another trim, which only moves the
- * problem from one output to the other.
+ * reproduces, so it loses more than the others do on the way out. Which is
+ * what the low cut in `createNeoVoice` is for, and why it is a filter
+ * rather than a fourth round of trims — a trim only moves that problem
+ * from one kind of output to the other. These levels were set before it
+ * went in and re-checked after: it costs `neo` 0.6dB of A-weighted level,
+ * inside the tolerance they were set to.
  *
  * The blind spot is worth keeping, because a fourth sound would walk into
  * it too: A-weighted energy integrates, and ignores the shape the energy

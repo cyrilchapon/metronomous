@@ -330,14 +330,23 @@ export class Metronome {
 
   /**
    * The sequence hands a voice its ticks up to `context.lookAhead` (100ms)
-   * before they are audible, and a tick rings for a few dozen milliseconds
-   * after that. Disposing the outgoing voice on the spot would cut one of
-   * those off mid-sample — a click, on the one gesture whose entire point
-   * is what it sounds like. Letting it go quiet on its own costs a couple
-   * of idle oscillators for a fraction of a second.
+   * before they are audible, and the tick itself rings on for as long as
+   * its envelopes say. Disposing the outgoing voice on the spot would cut
+   * one of those off mid-sample — a click, on the one gesture whose entire
+   * point is what it sounds like. Letting it go quiet on its own costs a
+   * couple of idle oscillators for a moment.
+   *
+   * How long that moment is, is the voice's own answer (`tailMs`) rather
+   * than a constant here: the release times live next to the envelopes
+   * that own them, and a number written here is a guess about another
+   * file. It was, too — a flat 250ms covered `clic` and `clave` twice over
+   * (both are at digital zero inside 200ms) and cut `neo`, which keeps
+   * Tone's default 1.4s release, mid-release: -42dBFS as it leaves the low
+   * cut, some 14dB louder than that before it. `neo` needs 1.4s to reach
+   * zero and now says so.
    */
   private _retireVoice(voice: MetronomeVoice) {
-    const graceMs = (Tone.getContext().lookAhead + 0.25) * 1000
+    const graceMs = Tone.getContext().lookAhead * 1000 + voice.tailMs
     window.setTimeout(() => voice.dispose(), graceMs)
   }
 
