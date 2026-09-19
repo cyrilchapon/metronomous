@@ -12,6 +12,9 @@ The interface is in French.
 - **Time signature** — 3/4 through 7/4.
 - **Subdivisions** — quarter, eighth, eighth triplet, sixteenth, sixteenth
   triplet.
+- **Sound** — `neo` (the app's own synthetic click), `clic` (a mechanical
+  metronome's tick) or `clave` (a pair of wooden sticks). All three are
+  synthesized rather than sampled — see *Sounds* below.
 - **Shape** — circle or regular polygon, with the beats (and optionally
   every subdivision) marked around it.
 - **Cursor** — a dot, a radial line, or both. Its motion is either linear or
@@ -120,6 +123,29 @@ drifting: a field of `T` with no schema, a schema for a field that no
 longer exists, and a schema for the wrong type all fail to compile. Values
 that shouldn't outlive a session stay out of the config — the metronome's
 `running` is a separate atom, and `state/global-ui.ts` holds the rest.
+
+**The sounds are synthesized, not sampled.** Each of the three is a couple
+of Tone.js nodes built on the spot in `src/util/metronome-sound.ts` —
+nothing to ship, fetch or decode before the first click, and no sample
+locked to the pitch and level it was recorded at. `neo` and `clave` are the
+same `MembraneSynth` recipe (a pitch envelope into an amplitude envelope) at
+opposite ends of its range; `clic` is a white-noise burst through a
+bandpass, which is what makes it a tick rather than a "tss".
+
+What the `Tone.Sequence` carries is a bar of `MetronomeAccent`s —
+`downbeat`, `beat`, `subdivision` — rather than notes and velocities. Every
+voice answers the same three accents in its own terms, so changing the sound
+swaps the voice and leaves the sequence, and the transport's phase in it,
+alone: `Metronome.setSound` is audible on the very next tick, mid-bar,
+without rebuilding anything. The outgoing voice is disposed a few hundred
+milliseconds later rather than immediately, because the sequence has already
+handed it the ticks inside Tone's scheduling look-ahead and cutting one of
+those off mid-sample is an audible click.
+
+Their levels were matched by rendering a beat of each offline and comparing
+A-weighted energy, not peak amplitude — see the note above
+`createMetronomeVoice` for the numbers and for why `clic` sits a few dB
+below the other two.
 
 **The canvas reads its colors from CSS.** PixiJS can't read the theme, so
 the visualization's palette is declared as `--metronome-*` custom properties
