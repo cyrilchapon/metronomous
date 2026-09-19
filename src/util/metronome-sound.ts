@@ -171,7 +171,12 @@ const createNeoVoice = (): MetronomeVoice => {
     // The one voice that keeps Tone's default envelope, whose 1.4s release
     // really does run its full length: `triggerRelease` ramps with a time
     // constant of `ln(release + 1) / ln(200)` and only reaches zero at the
-    // end. A hair over it, for the note it is released from.
+    // end. The 100ms on top is for the note it is released from — which is
+    // `'64n'`, so it moves with the tempo: 9ms at 400 BPM, 31 at 120, and
+    // 188 at the app's 20 BPM floor, where the real need is 1588ms and
+    // this budget is 88ms short. Left at 1500 anyway, because what gets
+    // cut there is -102dBFS — under the 16-bit floor, and two orders of
+    // magnitude below the -42dBFS this field exists to stop.
     tailMs: 1500,
     dispose: () => {
       synth.dispose()
@@ -207,8 +212,9 @@ const createClicVoice = (): MetronomeVoice => {
   }).connect(filter)
 
   const body = new Tone.MembraneSynth({
-    // A multiplier, not octaves — see the note in `createClaveVoice`. The
-    // case starts a fifth above its pitch (1152Hz) and falls onto it.
+    // A multiplier, not octaves — see the note in `createClaveVoice`. At
+    // 1.2 the case starts a just minor third above its pitch (6/5, 316
+    // cents, 1152Hz) and falls onto it.
     pitchDecay: 0.005,
     octaves: 1.2,
     oscillator: { type: 'sine' },
