@@ -56,18 +56,17 @@ type AccentHit = {
 const barOvertone = 2.76
 
 /**
- * Output trims, in dB. See `createMetronomeVoice` for how they were
- * arrived at; they are per-voice rather than per-node so that the balance
- * *inside* a voice (the clic's escapement against its case, the clave's
- * overtone against its fundamental) is written as an offset from one
- * number and survives a level change.
+ * Output trims, in dB, set by ear — see `createMetronomeVoice` for what
+ * that corrected and by how much.
  *
- * `clicVolume` is the one that isn't free: it is already as high as the
- * clic's peaks allow. The other two are set down to meet it.
+ * They are per-voice rather than per-node so that the balance *inside* a
+ * voice (the clic's escapement against its case, the clave's overtone
+ * against its fundamental) is written as an offset from one number and
+ * survives a level change.
  */
-const clicVolume = -1.8
-const claveVolume = -8.3
-const neoVolume = -3.8
+const clicVolume = -0.8
+const claveVolume = -16.4
+const neoVolume = -5.8
 
 /**
  * A live instance of one sound: its audio nodes, already connected to the
@@ -121,8 +120,8 @@ const createNeoVoice = (): MetronomeVoice => {
  * little energy, so it has to be kept quiet to avoid clipping and reads
  * as a hiss with a gate on it rather than as a thing ticking. The tone
  * underneath is what gives the click a body to be heard through — and
- * even so, this is the voice that runs out of headroom first and sets the
- * level the other two are trimmed down to.
+ * even so, this is the voice with the least headroom of the three: its
+ * downbeat is what stops `clicVolume` going any higher.
  */
 const createClicVoice = (): MetronomeVoice => {
   const filter = new Tone.Filter({
@@ -240,25 +239,31 @@ const createClaveVoice = (): MetronomeVoice => {
  * be triggered. The caller owns it: exactly one voice is alive at a time
  * (see `Metronome.setSound`), and it is the caller's to dispose.
  *
- * The trims above are what put the three at the same loudness: three
- * sounds this different are nowhere near the same level at the same
- * velocity, and changing the sound is not meant to change how loud the
- * metronome is. They were set by rendering a beat of each offline, six
- * times over — a noise transient's peak moves a few dB from one render to
- * the next — and comparing A-weighted energy across the first ~180ms, i.e.
- * how loud they *sound* rather than how high they peak.
+ * The trims above are what put the three at the same loudness — three
+ * sounds this different are nowhere near it at the same velocity, and
+ * changing the sound is not meant to change how loud the metronome is.
  *
- * `clic` is the one that sets the level, and it is worth knowing why: a
- * transient is nearly all peak and very little energy, so the shorter and
- * noisier a click is, the more headroom it burns to be heard. Even with a
- * resonant body to ring through — which is most of what the escapement's
- * chiff is sitting on — it runs out of room at -26.4dB, where `neo` would
- * happily play 4dB louder. So `neo` and `clave` are set *down* to meet it,
- * rather than `clic` being left the quiet one: a metronome whose volume
- * jumps when you change its sound is a broken metronome, and the fix costs
- * a few dB of a level the user sets anyway.
+ * They were set by ear, because the obvious measurement got it wrong.
+ * Matching A-weighted energy over the first ~180ms, which is how loud a
+ * sound *is* in a model calibrated on steady tones, had landed all three
+ * within 0.05dB of one another; listening to them in rotation, the clave
+ * was plainly the loudest of the three from there. It came down 8.1dB,
+ * `neo` 2dB, and `clic` went up 1dB — leaving them measuring -25.4dB,
+ * -28.4dB and -34.5dB respectively, a spread the metric calls badly
+ * mismatched and the ear calls even.
  *
- * All three now land within 0.05dB of -26.4dB, worst peak -1.7dBFS.
+ * The blind spot is worth keeping, because a fourth sound would walk into
+ * it too: A-weighted energy integrates, and ignores the shape the energy
+ * arrives in. `clave` is a clean 1.75kHz ring lasting 130ms — pitched, and
+ * sitting where hearing is sharpest — against `clic`'s broadband 50ms
+ * knock. Tonal and sustained reads far louder than noisy and brief at
+ * equal energy. Use the numbers to find the headroom; use the ear to set
+ * the level.
+ *
+ * The headroom is what the numbers are still good for. `clic`'s downbeat
+ * is the peak-critical tick of the three: over 60 offline renders it lands
+ * between -2.1 and -0.5dBFS (median -1.4), nothing at or above 0. That
+ * half a dB is the whole margin, and it is `clicVolume` that spends it.
  */
 export const createMetronomeVoice = (sound: MetronomeSound): MetronomeVoice => {
   switch (sound) {

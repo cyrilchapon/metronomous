@@ -146,12 +146,15 @@ milliseconds later rather than immediately, because the sequence has already
 handed it the ticks inside Tone's scheduling look-ahead and cutting one of
 those off mid-sample is an audible click.
 
-All three play at the same loudness, matched by rendering a beat of each
-offline and comparing A-weighted energy rather than peak amplitude. `clic`
-is what sets that level: a transient is nearly all peak and very little
-energy, so it runs out of headroom while the other two still have room, and
-they are trimmed *down* to meet it rather than left louder. See the note
-above `createMetronomeVoice` for the numbers.
+All three play at the same loudness, set by ear. Matching them on
+A-weighted energy — the obvious measurement, and the one this file used
+first — put them within 0.05dB of each other and sounded wrong: from there
+the clave had to come down another 8dB. A-weighted energy models a steady
+tone, while these are transients of very different shapes, and a pitched
+130ms ring reads far louder than a broadband 50ms knock carrying the same
+energy. What the measurement still decides is the ceiling: the clic's
+downbeat peaks around -1dBFS, which is what stops `clicVolume` going
+higher. See the note above `createMetronomeVoice`.
 
 **The canvas reads its colors from CSS.** PixiJS can't read the theme, so
 the visualization's palette is declared as `--metronome-*` custom properties
