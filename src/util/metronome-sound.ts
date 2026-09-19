@@ -68,9 +68,77 @@ const clicVolume = -1.8
 const claveVolume = -16.4
 const neoVolume = -5.8
 
+/** The corner of the shared high-pass, in Hz — see `metronomeOutput`. */
+const highPassHz = 120
+
+/**
+ * Everything the metronome plays goes through here rather than straight to
+ * the destination: one place to treat all three sounds at once, and one
+ * thing a fourth sound would inherit for free.
+ *
+ * What it does is subtract, not compress. `neo`'s fundamental is a 65Hz
+ * sine (110Hz on the downbeat) and it was reading as a bass note rather
+ * than as a click — depth that also happens to be the part a laptop or a
+ * phone can't reproduce, which is why three sounds balanced on one kind of
+ * speaker didn't hold on the other. At 120Hz and 12dB/octave this takes
+ * 10.9dB off C2 and 3.8dB off A2 while leaving their harmonics, the pitch
+ * sweep and the attack — the sound keeps its shape and loses its weight.
+ * By 800Hz the filter is 0.004dB off flat, which is to say `clic` (an
+ * 800Hz body) and `clave` (1.75kHz) pass through it untouched. `Q: 0.7` is
+ * Butterworth: maximally flat, no resonant bump at the corner — a filter
+ * that removes rather than one that colors.
+ *
+ * Dynamics would have been the wrong tool. A compressor changes how a
+ * sound's level *moves*, not where its energy sits, so on a 30ms tick it
+ * makes the tail denser and the boom no quieter; a limiter or a clipper
+ * caps peaks, which is a headroom device rather than a tone one. The
+ * complaint was spectral, so the fix is spectral.
+ *
+ * **The corner costs headroom, which is the thing to know before raising
+ * it.** Removing the low end of a sharp attack makes what is left
+ * overshoot — the step response of a high-pass — so a filter that only
+ * ever subtracts energy nonetheless *raises* the peak of a percussive
+ * sound. Measured on `clic`'s downbeat, 60 renders each: -2.5dB median
+ * with the corner at 5Hz (i.e. no filter), -1.95 at 60Hz, -1.16 at 100,
+ * -0.89 at 120, -0.67 at 140, -0.41 at 200. The 120Hz shipped here spends
+ * 1.6dB of `clic`'s margin and leaves about half a dB, nothing at or above
+ * 0dBFS. Much past 140 and the metronome's loudest tick starts clipping —
+ * for a filter corner, which is not where anyone would look for it.
+ *
+ * It is built per context, not once at module load. Everything these
+ * sounds are tuned on — every level and peak quoted in this file — comes
+ * from rendering them through `Tone.Offline`, which runs the graph in a
+ * throwaway context of its own, and a node belongs to the context that
+ * built it: one shared instance would have meant a voice created offline
+ * trying to connect to the live graph, which throws. One output per
+ * context, cached, keeps the app on a single instance and keeps the whole
+ * thing measurable.
+ */
+const outputs = new WeakMap<Tone.BaseContext, Tone.Filter>()
+
+const metronomeOutput = (): Tone.Filter => {
+  const context = Tone.getContext()
+  const existing = outputs.get(context)
+
+  if (existing !== undefined) {
+    return existing
+  }
+
+  const output = new Tone.Filter({
+    type: 'highpass',
+    frequency: highPassHz,
+    rolloff: -12,
+    Q: 0.7,
+  }).toDestination()
+
+  outputs.set(context, output)
+
+  return output
+}
+
 /**
  * A live instance of one sound: its audio nodes, already connected to the
- * destination, plus the one thing the sequence asks of them.
+ * metronome's output, plus the one thing the sequence asks of them.
  */
 export type MetronomeVoice = {
   /**
@@ -91,7 +159,9 @@ export type MetronomeVoice = {
  * has moved, and it moved for the other two's sake.
  */
 const createNeoVoice = (): MetronomeVoice => {
-  const synth = new Tone.MembraneSynth({ volume: neoVolume }).toDestination()
+  const synth = new Tone.MembraneSynth({ volume: neoVolume }).connect(
+    metronomeOutput()
+  )
 
   const notes: AccentValues<AccentNote> = {
     downbeat: { note: 'A2', velocity: 0.8 },
@@ -128,7 +198,7 @@ const createClicVoice = (): MetronomeVoice => {
     type: 'bandpass',
     frequency: 2500,
     Q: 3,
-  }).toDestination()
+  }).connect(metronomeOutput())
 
   const chiff = new Tone.NoiseSynth({
     noise: { type: 'white' },
@@ -142,7 +212,7 @@ const createClicVoice = (): MetronomeVoice => {
     oscillator: { type: 'sine' },
     envelope: { attack: 0.0004, decay: 0.055, sustain: 0, release: 0.03 },
     volume: clicVolume,
-  }).toDestination()
+  }).connect(metronomeOutput())
 
   const hits: AccentValues<AccentHit> = {
     downbeat: { band: 3000, note: 960, velocity: 0.9 },
@@ -187,19 +257,19 @@ const createClaveVoice = (): MetronomeVoice => {
     oscillator: { type: 'sine' },
     envelope: { attack: 0.0004, decay: 0.13, sustain: 0, release: 0.05 },
     volume: claveVolume,
-  }).toDestination()
+  }).connect(metronomeOutput())
 
   const overtone = new Tone.Synth({
     oscillator: { type: 'sine' },
     envelope: { attack: 0.0004, decay: 0.028, sustain: 0, release: 0.02 },
     volume: claveVolume - 13,
-  }).toDestination()
+  }).connect(metronomeOutput())
 
   const contactFilter = new Tone.Filter({
     type: 'bandpass',
     frequency: 4200,
     Q: 1.2,
-  }).toDestination()
+  }).connect(metronomeOutput())
 
   const contact = new Tone.NoiseSynth({
     noise: { type: 'white' },
@@ -272,9 +342,9 @@ const createClaveVoice = (): MetronomeVoice => {
  *
  * The headroom is what the numbers are still good for. `clic`'s downbeat
  * is the peak-critical tick of the three: over 60 offline renders it lands
- * between -3.0 and -1.4dBFS (median -2.3), nothing at or above 0. Those
- * 1.4dB are the whole margin, and it is `clicVolume` that spends them —
- * anything much above -0.5 starts clipping the odd downbeat.
+ * between -1.2 and -0.5dBFS (median -0.9), nothing at or above 0. That
+ * half a dB is the whole margin, and two things spend it — `clicVolume`,
+ * and `highPassHz`, for the reason set out over `metronomeOutput`.
  */
 export const createMetronomeVoice = (sound: MetronomeSound): MetronomeVoice => {
   switch (sound) {

@@ -146,6 +146,17 @@ milliseconds later rather than immediately, because the sequence has already
 handed it the ticks inside Tone's scheduling look-ahead and cutting one of
 those off mid-sample is an audible click.
 
+Everything the metronome plays goes through one shared output — a 120Hz
+high-pass, at 12dB/octave. It exists for `neo`, whose 65Hz fundamental read
+as a bass note rather than as a click, and which is also the part of the
+sound a laptop or a phone cannot reproduce: cutting it is what makes the
+three balance the same way on both kinds of speaker. `clic` and `clave`,
+whose lowest components sit at 800Hz and 1.75kHz, pass through it
+untouched. It is a filter rather than a compressor deliberately — the
+complaint was about where the energy sat, not about how its level moved —
+and it is built per audio context so the graph stays renderable through
+`Tone.Offline`, which is how every level quoted here was obtained.
+
 All three play at the same loudness, set by ear. Matching them on
 A-weighted energy — the obvious measurement, and the one this file used
 first — put them within 0.05dB of each other and sounded wrong: from there
