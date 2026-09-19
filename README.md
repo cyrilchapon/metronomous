@@ -153,8 +153,8 @@ the clave had to come down another 8dB. A-weighted energy models a steady
 tone, while these are transients of very different shapes, and a pitched
 130ms ring reads far louder than a broadband 50ms knock carrying the same
 energy. What the measurement still decides is the ceiling: the clic's
-downbeat peaks around -1dBFS, which is what stops `clicVolume` going
-higher. See the note above `createMetronomeVoice`.
+downbeat peaks around -1.5dBFS, which is what stops `clicVolume` going
+much higher. See the note above `createMetronomeVoice`.
 
 **The canvas reads its colors from CSS.** PixiJS can't read the theme, so
 the visualization's palette is declared as `--metronome-*` custom properties

@@ -64,7 +64,7 @@ const barOvertone = 2.76
  * against its fundamental) is written as an offset from one number and
  * survives a level change.
  */
-const clicVolume = -0.8
+const clicVolume = -1.8
 const claveVolume = -16.4
 const neoVolume = -5.8
 
@@ -246,11 +246,21 @@ const createClaveVoice = (): MetronomeVoice => {
  * They were set by ear, because the obvious measurement got it wrong.
  * Matching A-weighted energy over the first ~180ms, which is how loud a
  * sound *is* in a model calibrated on steady tones, had landed all three
- * within 0.05dB of one another; listening to them in rotation, the clave
- * was plainly the loudest of the three from there. It came down 8.1dB,
- * `neo` 2dB, and `clic` went up 1dB — leaving them measuring -25.4dB,
- * -28.4dB and -34.5dB respectively, a spread the metric calls badly
- * mismatched and the ear calls even.
+ * within 0.05dB of one another; listening to them in rotation, the two
+ * pitched ones were plainly louder from there. `clave` came down 8.1dB
+ * and `neo` 2dB, while `clic` ended up back within a tenth of where the
+ * measurement had put it. Measured now: `clic` -26.4dB, `neo` -28.4dB,
+ * `clave` -34.5dB — a spread the metric calls badly mismatched and the
+ * ear calls even.
+ *
+ * The last dB of that came off `clic` on a laptop and a phone, where the
+ * balance set on a bigger speaker had it sitting proud. Both ends of that
+ * are `neo`: its fundamental is a 65Hz sine that a small speaker barely
+ * reproduces, so it loses more than the others do on the way out. If the
+ * three ever need to hold on *both* kinds of output at once, the lever is
+ * a high-pass on `neo` — giving it presence where a small speaker can
+ * actually play it — rather than another trim, which only moves the
+ * problem from one output to the other.
  *
  * The blind spot is worth keeping, because a fourth sound would walk into
  * it too: A-weighted energy integrates, and ignores the shape the energy
@@ -262,8 +272,9 @@ const createClaveVoice = (): MetronomeVoice => {
  *
  * The headroom is what the numbers are still good for. `clic`'s downbeat
  * is the peak-critical tick of the three: over 60 offline renders it lands
- * between -2.1 and -0.5dBFS (median -1.4), nothing at or above 0. That
- * half a dB is the whole margin, and it is `clicVolume` that spends it.
+ * between -3.0 and -1.4dBFS (median -2.3), nothing at or above 0. Those
+ * 1.4dB are the whole margin, and it is `clicVolume` that spends them —
+ * anything much above -0.5 starts clipping the odd downbeat.
  */
 export const createMetronomeVoice = (sound: MetronomeSound): MetronomeVoice => {
   switch (sound) {
