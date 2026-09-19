@@ -1,5 +1,11 @@
 import * as Tone from 'tone'
 import { emptyArray } from './array'
+import {
+  createMetronomeVoice,
+  MetronomeAccent,
+  MetronomeSound,
+  MetronomeVoice,
+} from './metronome-sound'
 import { UnreachableCaseError } from './unreachable-case-error'
 import { TransportClass } from 'tone/build/esm/core/clock/Transport'
 import { createNanoEvents, Emitter } from 'nanoevents'
@@ -29,11 +35,6 @@ export const divisionAtProgress = (
   const divisionIndex = Math.floor(progress * signature)
   const progressInDivision = (progress - (1 / signature) * divisionIndex) * signature
   return { divisionIndex, progressInDivision }
-}
-
-export type MetronomeNote = {
-  name: string
-  velocity: number
 }
 
 export type MetronomeProgress = {
@@ -93,23 +94,21 @@ export type MetronomeEvents = {
  *   throttled/backgrounded).
  */
 export class Metronome {
+  /**
+   * One bar's worth of accents, which is all the sequence carries: what
+   * each of them *sounds* like is the voice's business — see
+   * `MetronomeAccent`.
+   */
   static getSequenceEvents = (
     signature: MetronomeSignature,
     subdivisions: MetronomeSubdivision
   ) => {
-    return emptyArray(signature).flatMap<MetronomeNote>((_v1, beat) =>
-      emptyArray(subdivisions).map<MetronomeNote>((_v, subdivision) => ({
-        name: beat === 0 && subdivision === 0 ? 'A2' : 'C2',
-        velocity: subdivision === 0 ? 0.8 : 0.2,
-      }))
+    return emptyArray(signature).flatMap<MetronomeAccent>((_v1, beat) =>
+      emptyArray(subdivisions).map<MetronomeAccent>((_v, subdivision) =>
+        subdivision !== 0 ? 'subdivision' : beat === 0 ? 'downbeat' : 'beat'
+      )
     )
   }
-
-  static playNote =
-    (synth: Tone.Synth): Tone.ToneEventCallback<MetronomeNote> =>
-    (time, { name: note, velocity }) => {
-      synth.triggerAttackRelease(note, '64n', time, velocity)
-    }
 
   static getSequenceSubdivision = (subdivisions: MetronomeSubdivision) => {
     switch (subdivisions) {
@@ -128,7 +127,6 @@ export class Metronome {
     }
   }
 
-  readonly synth: Tone.Synth
   readonly transport: TransportClass
 
   private _emitter: Emitter<MetronomeEvents>
@@ -136,10 +134,23 @@ export class Metronome {
     return this._emitter.on(event, callback)
   }
 
-  private _sequence: Tone.Sequence<MetronomeNote>
+  private _sequence: Tone.Sequence<MetronomeAccent>
   get sequence() {
     return this._sequence
   }
+
+  private _sound: MetronomeSound
+  get sound() {
+    return this._sound
+  }
+
+  /**
+   * The audio nodes making the sound, swapped wholesale by `setSound`.
+   * Exactly one is alive at a time — bar the few hundred milliseconds
+   * `_retireVoice` gives the previous one to finish what it was already
+   * scheduled to play.
+   */
+  private _voice: MetronomeVoice
 
   private _signature: MetronomeSignature
   get signature() {
@@ -269,15 +280,16 @@ export class Metronome {
   constructor(
     transport: TransportClass,
     initialTimeSignature: MetronomeSignature,
-    initialSubdivisions: MetronomeSubdivision
+    initialSubdivisions: MetronomeSubdivision,
+    initialSound: MetronomeSound
   ) {
     this._emitter = createNanoEvents<MetronomeEvents>()
 
     this._signature = initialTimeSignature
     this._subdivisions = initialSubdivisions
 
-    this.synth = new Tone.MembraneSynth()
-    this.synth.toDestination()
+    this._sound = initialSound
+    this._voice = createMetronomeVoice(this._sound)
 
     this.transport = transport
     this.transport.timeSignature = this._signature
@@ -295,6 +307,38 @@ export class Metronome {
 
       this._rebuildSequence()
     }
+  }
+
+  /**
+   * Swaps the timbre under a running sequence: the sequence carries
+   * accents rather than notes, so nothing about the bar — or the
+   * transport's phase in it — is touched, and the change is audible on the
+   * very next tick.
+   */
+  setSound(sound: MetronomeSound) {
+    if (sound === this._sound) {
+      return
+    }
+
+    this._sound = sound
+
+    const previousVoice = this._voice
+    this._voice = createMetronomeVoice(this._sound)
+
+    this._retireVoice(previousVoice)
+  }
+
+  /**
+   * The sequence hands a voice its ticks up to `context.lookAhead` (100ms)
+   * before they are audible, and a tick rings for a few dozen milliseconds
+   * after that. Disposing the outgoing voice on the spot would cut one of
+   * those off mid-sample — a click, on the one gesture whose entire point
+   * is what it sounds like. Letting it go quiet on its own costs a couple
+   * of idle oscillators for a fraction of a second.
+   */
+  private _retireVoice(voice: MetronomeVoice) {
+    const graceMs = (Tone.getContext().lookAhead + 0.25) * 1000
+    window.setTimeout(() => voice.dispose(), graceMs)
   }
 
   setSubdivisions(subdivisions: MetronomeSubdivision) {
@@ -329,9 +373,11 @@ export class Metronome {
   }
 
   private _createSequence() {
-    return new Tone.Sequence<MetronomeNote>(
-      (time, note) => {
-        Metronome.playNote(this.synth)(time, note)
+    return new Tone.Sequence<MetronomeAccent>(
+      (time, accent) => {
+        // Deliberately read off `this` at call time rather than captured:
+        // the sequence outlives any given voice — see `setSound`.
+        this._voice.trigger(time, accent)
       },
       Metronome.getSequenceEvents(this._signature, this._subdivisions),
       Metronome.getSequenceSubdivision(this._subdivisions)

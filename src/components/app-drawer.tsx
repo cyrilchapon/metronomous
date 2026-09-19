@@ -1,15 +1,18 @@
 import { useAtom, useAtomValue } from 'jotai'
 import { RESET } from 'jotai/utils'
 import {
+  AudioWaveform,
   Circle,
   CircleDot,
   CircleDotDashed,
   Disc,
+  Drum,
   GitCommitHorizontal,
   Minus,
   Pentagon,
   Radar,
   RotateCcw,
+  Timer,
   Waves,
 } from 'lucide-react'
 import { FunctionComponent } from 'react'
@@ -29,11 +32,13 @@ import {
 import { menuDrawerOpenAtom } from '../state/global-ui'
 import {
   metronomeSignatureAtom,
+  metronomeSoundAtom,
   metronomeSubdivisionAtom,
 } from '../state/metronome'
 import { findLiteral, findLiterals } from '../util/array'
 import { easingMasses, isEasingMass } from '../util/mass-easing'
 import { metronomeSignatures, metronomeSubdivisions } from '../util/metronome'
+import { MetronomeSound, metronomeSounds } from '../util/metronome-sound'
 import { ColorModeToggleGroup } from './color-mode-toggle-group'
 import { SubdivisionIcon } from './subdivision-icon'
 import { Button } from '@/components/ui/button'
@@ -65,6 +70,7 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
   const [metronomeSubdivision, setMetronomeSubdivision] = useAtom(
     metronomeSubdivisionAtom
   )
+  const [metronomeSound, setMetronomeSound] = useAtom(metronomeSoundAtom)
 
   const cursorEasingDisabled = displaySettings.cursorMoveMode !== 'eased'
 
@@ -149,6 +155,41 @@ export const AppDrawer: FunctionComponent<AppDrawerProps> = (props) => {
                     <SubdivisionIcon subdivision={subdivision} />
                   </ToggleGroupItem>
                 ))}
+              </ToggleGroup>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Son</Label>
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                spacing={0}
+                size="sm"
+                className="w-full"
+                value={metronomeSound}
+                onValueChange={(raw) => {
+                  const value = findLiteral<MetronomeSound>(
+                    metronomeSounds,
+                    raw
+                  )
+                  if (value == null) {
+                    return
+                  }
+                  setMetronomeSound(value)
+                }}
+              >
+                <ToggleGroupItem value="neo" className="flex-1">
+                  <AudioWaveform />
+                  Neo
+                </ToggleGroupItem>
+                <ToggleGroupItem value="clic" className="flex-1">
+                  <Timer />
+                  Clic
+                </ToggleGroupItem>
+                <ToggleGroupItem value="clave" className="flex-1">
+                  <Drum />
+                  Clave
+                </ToggleGroupItem>
               </ToggleGroup>
             </div>
           </section>

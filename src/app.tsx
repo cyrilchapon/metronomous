@@ -10,6 +10,7 @@ import {
   updateMetronomeMutedEffect,
   updateMetronomeRunningEffect,
   updateMetronomeSignatureEffect,
+  updateMetronomeSoundEffect,
   updateMetronomeSubdivisionEffect,
 } from './state/metronome'
 import { store } from './state/store'
@@ -30,6 +31,7 @@ const AppRoot = () => {
   useAtom(updateMetronomeBpmEffect)
   useAtom(updateMetronomeSignatureEffect)
   useAtom(updateMetronomeSubdivisionEffect)
+  useAtom(updateMetronomeSoundEffect)
   useAtom(updateMetronomeMutedEffect)
 
   const showVisualization = useAtomValue(showVisualizationAtom)
