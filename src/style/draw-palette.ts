@@ -1,7 +1,6 @@
 import { cssColorToNumber } from './css-color'
 
 export type DrawPalette = {
-  back: number
   main: number
   cursor: number
 }
@@ -21,7 +20,6 @@ export const readDrawPalette = (): DrawPalette => {
     cssColorToNumber(styles.getPropertyValue(property).trim()) ?? fallback
 
   return {
-    back: read('--metronome-back', 0x000000),
     main: read('--metronome-main', 0xffffff),
     cursor: read('--metronome-cursor', 0xff3300),
   }

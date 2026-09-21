@@ -15,8 +15,35 @@ const TRAIL_DURATION_MS = 320
 // Cap on how much of a full bar the trail can span, so it doesn't wrap
 // around and overlap itself at very high tempos.
 const TRAIL_MAX_SPAN = 0.22
-const TRAIL_SEGMENTS = 14
+
+/**
+ * How finely the shape is walked behind the cursor. The line's sector
+ * needs every one of these: it shades a large area, and a band of flat
+ * alpha that wide reads as banding — 14 of them is a visible staircase,
+ * 42 is a gradient.
+ */
+const TRAIL_SAMPLES = 42
+/**
+ * The dot's trail takes every third sample instead. It is a thin stroke,
+ * where that much resolution buys nothing visible, and this keeps it at
+ * the 14 segments it has always cost. When the line isn't on screen, the
+ * sampling itself drops to this stride too — so the common case (dot
+ * only) walks the shape exactly as many times as it used to.
+ */
+const DOT_TRAIL_STRIDE = 3
+const DOT_TRAIL_SEGMENTS = TRAIL_SAMPLES / DOT_TRAIL_STRIDE
+
 const TRAIL_MAX_ALPHA = 0.85
+// The line's trail sweeps a whole sector rather than tracing a thin path,
+// so the same alpha over that much area would read several times heavier
+// — about a fifth of the dot's, by eye, is where the two weigh the same.
+const LINE_TRAIL_MAX_ALPHA = 0.15
+
+// The cursor line is drawn once, along +x, at this length, and then merely
+// rotated and stretched (see `renderAt`). Any reference length works; a
+// round number well above a stroke width keeps the baked quad comfortably
+// non-degenerate.
+const LINE_REFERENCE_LENGTH = 100
 
 export type ShapeCursorProps = {
   metronome: Metronome
@@ -46,7 +73,8 @@ export type ShapeCursorProps = {
 
 /**
  * The one part of the visualization that legitimately changes every frame:
- * the moving cursor (dot + line to the center + trail) and its motion blur.
+ * the moving cursor (dot + line to the center + trails) and its motion
+ * blur.
  *
  * Everything here is imperative — refs are mutated directly inside a
  * `useTick` callback instead of going through React state/props — so a
@@ -78,6 +106,7 @@ export const ShapeCursor = ({
   const dotGraphicsRef = useRef<Graphics>(null)
   const lineGraphicsRef = useRef<Graphics>(null)
   const trailGraphicsRef = useRef<Graphics>(null)
+  const lineTrailGraphicsRef = useRef<Graphics>(null)
 
   // "Latest" refs: read every frame from the ticker without forcing the
   // (memoized, stable) tick callback to be re-subscribed on every render.
@@ -93,8 +122,6 @@ export const ShapeCursor = ({
   centerPointRef.current = centerPoint
   const colorRef = useRef(color)
   colorRef.current = color
-  const lineWidthRef = useRef(lineWidth)
-  lineWidthRef.current = lineWidth
   const trailWidthRef = useRef(trailWidth)
   trailWidthRef.current = trailWidth
 
@@ -105,6 +132,16 @@ export const ShapeCursor = ({
   // instantaneous speed and producing a burst of ghost dots (the motion
   // blur kernel smearing a huge fake velocity across a few taps).
   const lastPointRef = useRef<GeoPoint | null>(null)
+
+  // Flat `[x, y, x, y, …]` buffer of the trail's sample points, index 0
+  // being the cursor itself and the rest walking backwards along the
+  // shape. Written in place every frame: both trails read the same
+  // samples, so the shape's boundary is walked once whatever is on screen,
+  // and the sampling allocates nothing per frame beyond what
+  // `getPointAtProgress` itself returns.
+  const trailSamplesRef = useRef<number[]>(
+    new Array<number>((TRAIL_SAMPLES + 1) * 2).fill(0)
+  )
 
   const motionBlurFilter = useMemo(() => {
     const filter = new MotionBlurFilter({
@@ -118,10 +155,11 @@ export const ShapeCursor = ({
     return filter
   }, [motionBlurKernelSize, motionBlurOffset])
 
-  // A light, cheap-quality glow on the trail only (not the dot) — kept as a
-  // single persistent filter instance/instruction so redrawing the trail's
-  // (short, small) path every frame is the only per-frame cost; the glow
-  // itself doesn't need any updating.
+  // A light, cheap-quality glow on the dot's trail only (not the dot, not
+  // the line's sector — a filter over an area that large is a different
+  // order of cost) — kept as a single persistent filter instance/instruction
+  // so redrawing the trail's (short, small) path every frame is the only
+  // per-frame cost; the glow itself doesn't need any updating.
   //
   // `quality` (shader sample count, "the higher the less performant" per
   // the filter's own docs) is by far the dominant per-frame cost of the
@@ -149,13 +187,12 @@ export const ShapeCursor = ({
     trailGlowFilter.distance = Math.max(trailWidth * 2, 4)
   }, [trailGlowFilter, trailWidth])
 
-  const drawTrail = useCallback((currentProgress: number) => {
-    const g = trailGraphicsRef.current
-    if (!g) {
-      return
-    }
-
-    g.clear()
+  /**
+   * Walks the shape backwards from `currentProgress` into
+   * `trailSamplesRef`, every `stride` samples.
+   */
+  const sampleTrail = useCallback((currentProgress: number, stride: number) => {
+    const samples = trailSamplesRef.current
 
     const secondsPerBar = signatureRef.current * (60 / bpmRef.current)
     const span = Math.min(
@@ -163,33 +200,95 @@ export const ShapeCursor = ({
       TRAIL_MAX_SPAN
     )
 
+    for (let i = 0; i <= TRAIL_SAMPLES; i += stride) {
+      const [x, y] = getPointAtProgressRef.current(
+        currentProgress - span * (i / TRAIL_SAMPLES)
+      )
+      samples[i * 2] = x
+      samples[i * 2 + 1] = y
+    }
+  }, [])
+
+  /** The dot's trail: a tapering stroke along the boundary behind it. */
+  const drawDotTrail = useCallback(() => {
+    const g = trailGraphicsRef.current
+    if (!g) {
+      return
+    }
+
+    const samples = trailSamplesRef.current
     const color = colorRef.current
     const width = trailWidthRef.current
-    let previous = getPointAtProgressRef.current(currentProgress)
 
-    for (let i = 1; i <= TRAIL_SEGMENTS; i++) {
-      const t = i / TRAIL_SEGMENTS
-      const point = getPointAtProgressRef.current(currentProgress - span * t)
+    g.clear()
+
+    for (let i = 1; i <= DOT_TRAIL_SEGMENTS; i++) {
       // Degressive: dense right behind the dot, fading out toward the tail.
-      const alpha = (1 - t) ** 2 * TRAIL_MAX_ALPHA
-
-      if (alpha > 0.01) {
-        g.moveTo(previous[0], previous[1])
-        g.lineTo(point[0], point[1])
-        // Flat (not round) caps: each segment gets its own alpha, drawn as
-        // its own little stroked path, so a round cap would bulge at every
-        // segment boundary — a string of beads instead of a smooth taper.
-        // Adjacent segments share exact endpoints, so flat caps tile
-        // together cleanly.
-        g.stroke({ width, color, alpha, cap: 'butt' })
+      const alpha = (1 - i / DOT_TRAIL_SEGMENTS) ** 2 * TRAIL_MAX_ALPHA
+      if (alpha <= 0.01) {
+        continue
       }
 
-      previous = point
+      const from = (i - 1) * DOT_TRAIL_STRIDE
+      const to = i * DOT_TRAIL_STRIDE
+
+      g.moveTo(samples[from * 2], samples[from * 2 + 1])
+      g.lineTo(samples[to * 2], samples[to * 2 + 1])
+      // Flat (not round) caps: each segment gets its own alpha, drawn as
+      // its own little stroked path, so a round cap would bulge at every
+      // segment boundary — a string of beads instead of a smooth taper.
+      // Adjacent segments share exact endpoints, so flat caps tile
+      // together cleanly.
+      g.stroke({ width, color, alpha, cap: 'butt' })
+    }
+  }, [])
+
+  /**
+   * The line's trail: the same taper, swept. Where the dot leaves a path
+   * behind it, the line sweeps an area, so its trail is that area — a
+   * sector, built as a fan of triangles off the center, each carrying the
+   * same degressive alpha its stroked counterpart would. Same span, same
+   * fade law, same duration as the dot's; only the shape differs, because
+   * the thing leaving it does.
+   */
+  const drawLineTrail = useCallback(() => {
+    const g = lineTrailGraphicsRef.current
+    if (!g) {
+      return
+    }
+
+    const samples = trailSamplesRef.current
+    const [cx, cy] = centerPointRef.current
+    const color = colorRef.current
+
+    g.clear()
+
+    for (let i = 1; i <= TRAIL_SAMPLES; i++) {
+      const alpha = (1 - i / TRAIL_SAMPLES) ** 2 * LINE_TRAIL_MAX_ALPHA
+      if (alpha <= 0.01) {
+        continue
+      }
+
+      // A fresh array per triangle: `Polygon` keeps the one it is handed
+      // rather than copying it, so a shared scratch buffer would leave
+      // every triangle reading the last one's coordinates.
+      g.poly([
+        cx,
+        cy,
+        samples[(i - 1) * 2],
+        samples[(i - 1) * 2 + 1],
+        samples[i * 2],
+        samples[i * 2 + 1],
+      ])
+      g.fill({ color, alpha })
     }
   }, [])
 
   const renderAt = useCallback(
-    (progress: MetronomeProgress, { snap = false }: { snap?: boolean } = {}) => {
+    (
+      progress: MetronomeProgress,
+      { snap = false }: { snap?: boolean } = {}
+    ) => {
       const point = getPointAtProgressRef.current(progress.progress)
       const [x, y] = point
 
@@ -215,24 +314,42 @@ export const ShapeCursor = ({
       const line = lineGraphicsRef.current
       if (line) {
         const [cx, cy] = centerPointRef.current
+        const dx = x - cx
+        const dy = y - cy
 
-        line.clear()
-        line.moveTo(cx, cy)
-        line.lineTo(x, y)
-        line.stroke({
-          width: lineWidthRef.current,
-          color: colorRef.current,
-          alpha: 1,
-        })
+        // The line is one quad that never changes: it is baked once (see
+        // `drawLine`) from the center along +x, and placed here by the
+        // only two things about it that actually move — its angle and its
+        // length. Clearing and re-stroking a path every frame rebuilt that
+        // same quad sixty times a second for nothing. Scaling x alone
+        // stretches the quad along its length and leaves its thickness
+        // (which lies in y) exactly at `lineWidth`; the rotation that
+        // follows is rigid, so nothing shears.
+        line.rotation = Math.atan2(dy, dx)
+        line.scale.x = Math.hypot(dx, dy) / LINE_REFERENCE_LENGTH
       }
 
       if (snap) {
         trailGraphicsRef.current?.clear()
-      } else {
-        drawTrail(progress.progress)
+        lineTrailGraphicsRef.current?.clear()
+        return
+      }
+
+      const lineTrail = lineTrailGraphicsRef.current
+      if (trailGraphicsRef.current || lineTrail) {
+        sampleTrail(progress.progress, lineTrail ? 1 : DOT_TRAIL_STRIDE)
+        drawDotTrail()
+        drawLineTrail()
       }
     },
-    [drawTrail, motionBlurFilter, speedFactor, speedTrigger]
+    [
+      sampleTrail,
+      drawDotTrail,
+      drawLineTrail,
+      motionBlurFilter,
+      speedFactor,
+      speedTrigger,
+    ]
   )
 
   const tick = useCallback(() => {
@@ -277,9 +394,31 @@ export const ShapeCursor = ({
     [color, dotRadius]
   )
 
+  const drawLine = useCallback(
+    (g: Graphics) => {
+      g.clear()
+      g.moveTo(0, 0)
+      g.lineTo(LINE_REFERENCE_LENGTH, 0)
+      g.stroke({ width: lineWidth, color, alpha: 1, cap: 'butt' })
+    },
+    [color, lineWidth]
+  )
+
+  const [centerX, centerY] = centerPoint
+
   return (
     <>
-      {showLine ? <pixiGraphics ref={lineGraphicsRef} draw={noop} /> : null}
+      {showLine ? (
+        <>
+          <pixiGraphics ref={lineTrailGraphicsRef} draw={noop} />
+          <pixiGraphics
+            ref={lineGraphicsRef}
+            x={centerX}
+            y={centerY}
+            draw={drawLine}
+          />
+        </>
+      ) : null}
       {showDot ? (
         <>
           <pixiGraphics

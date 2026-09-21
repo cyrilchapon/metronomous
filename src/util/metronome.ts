@@ -170,6 +170,15 @@ export class Metronome {
   }
 
   /**
+   * One beat, in milliseconds, at the tempo the transport is running
+   * *now* — what anything measuring itself against the pulse rather than
+   * against the wall clock should be scaled by.
+   */
+  get beatMs() {
+    return 60_000 / this.transport.bpm.value
+  }
+
+  /**
    * Synchronous, allocation-light read of the transport's current position
    * (see class docs for why this deliberately avoids Tone's scheduling
    * look-ahead). Safe (and intended) to call every animation frame.
