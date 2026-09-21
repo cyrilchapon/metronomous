@@ -36,6 +36,18 @@ const decay = (u: number) => (Math.exp(-DECAY * u) - DECAY_FLOOR) * DECAY_SCALE
  */
 const expand = easings.back.out.with({ overshoot: 0.8 })
 
+/**
+ * Below this, a flash is still costing a full-size fill every frame and
+ * paying nothing back: at 1% alpha a red disc moves the pixels under it by
+ * about one 8-bit step. An exponential decay spends a long time down
+ * there — with the current steepness the last quarter of every flash's
+ * life is under this — and a shape flash is a disc covering the whole
+ * visualization, several of which can be alive at once. So the tail is cut
+ * rather than drawn: `flashValuesAt` reports it as over, which is what
+ * lets the callers hide the graphics outright.
+ */
+const MIN_VISIBLE_OPACITY = 0.01
+
 export type FlashValues = {
   opacity: number
   /**
@@ -68,9 +80,10 @@ export const flashValuesAt = (
       : decay((t - ATTACK) / (1 - ATTACK))
 
   const radius = fromRadius + (toRadius - fromRadius) * expand(t)
+  const opacity = fromOpacity * brightness
 
   return {
-    opacity: fromOpacity * brightness,
+    opacity: opacity < MIN_VISIBLE_OPACITY ? 0 : opacity,
     scale: radius / toRadius,
   }
 }
