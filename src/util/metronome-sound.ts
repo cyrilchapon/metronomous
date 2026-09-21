@@ -74,6 +74,17 @@ const neoVolume = -5.8
 const lowCutHz = 150
 
 /**
+ * How long a voice being replaced takes to fade out, in seconds — see
+ * `Metronome._retireVoice`, which is what schedules it.
+ *
+ * Long enough to be a fade rather than a cut, and to let the ticks already
+ * scheduled when the sound changed speak: an attack is a millisecond, so
+ * 50ms still carries the body of one. Short enough that the outgoing sound
+ * is gone well inside a beat — a tenth of one at 120 BPM.
+ */
+export const voiceFadeSeconds = 0.05
+
+/**
  * A live instance of one sound: its audio nodes, already connected to the
  * destination, plus the one thing the sequence asks of them.
  */
@@ -86,26 +97,90 @@ export type MetronomeVoice = {
    */
   trigger: (time: number, accent: MetronomeAccent) => void
   /**
-   * How long this voice keeps sounding after its last `trigger`, in
-   * milliseconds — the release its envelopes still owe, plus the note they
-   * are released from.
+   * Fades this voice's output to silence over `voiceFadeSeconds`, starting
+   * at `time` — how a voice stops when the sound is changed under it.
    *
-   * It lives here because it is a property of the envelopes right next to
-   * it, and `Metronome.setSound` has to wait it out before disposing the
-   * voice it is replacing. As a constant over there it was a guess about
-   * this file, and a wrong one: `neo` takes Tone's default 1.4s release
-   * and was being cut off at 350ms.
+   * It is what makes the change *audibly* a change: whatever the envelopes
+   * still owe, the old sound is over within a fade of the new one starting
+   * rather than ringing across it. Waiting the tail out instead meant the
+   * one voice with a long one (`neo`, below) carried into the next beat or
+   * two of whatever replaced it — the switch heard as a swell rather than
+   * as a swap.
+   *
+   * Scheduled, like everything else here, against the audio clock: `time`
+   * is a Web Audio timestamp, not a delay.
    */
-  tailMs: number
+  silence: (time: number) => void
   dispose: () => void
 }
+
+/** What a voice is assembled from, before `createVoice` closes it up. */
+type VoiceParts = {
+  /** The node every part of the voice is routed through. */
+  output: Tone.Gain
+  trigger: MetronomeVoice['trigger']
+  /** Disposes the parts; `createVoice` adds `output` to it. */
+  dispose: () => void
+}
+
+/**
+ * Wraps a voice's parts into the thing `Metronome` holds.
+ *
+ * Routing a voice through one gain of its own, rather than each of its
+ * nodes straight to the destination, is what `silence` needs to exist: the
+ * fade is a single automation on the sum of a voice's parts, so a voice
+ * built from three synths and two filters still stops as one thing, in one
+ * ramp, with no click.
+ */
+const createVoice = ({
+  output,
+  trigger,
+  dispose,
+}: VoiceParts): MetronomeVoice => ({
+  trigger,
+  silence: (time) => {
+    // `setRampPoint` pins the gain to what it is at `time` before ramping
+    // off it — without it the ramp would start from the last *scheduled*
+    // value, which for an untouched gain is the one it was created with.
+    output.gain.setRampPoint(time)
+    output.gain.linearRampToValueAtTime(0, time + voiceFadeSeconds)
+  },
+  dispose: () => {
+    dispose()
+    output.dispose()
+  },
+})
 
 /**
  * The original sound: a `MembraneSynth`'s pitch-swept sine, low and round,
  * with the downbeat set apart by pitch and the subdivisions by level.
  *
- * Note for note what it has always been. What has moved is its trim, and
- * the low cut it now plays through.
+ * Note for note what it has always been. What has moved is its trim, the
+ * low cut it now plays through, and how long it rings.
+ *
+ * **The envelope.** `MembraneSynth`'s defaults are a kick drum's: 400ms
+ * of decay onto a 1% sustain, released over 1.4s. Under a metronome that
+ * is not a tick, it is a bass note. One `neo` tick, measured: still at
+ * -40dBFS 307ms after its attack, -60 at 689ms, -90 only at 1255ms. At
+ * 120 BPM every beat rings most of the way into the next one — and that
+ * one ring is behind both of the things it was reported as: a sound that
+ * measures level with the others but *sits* on a system that reproduces
+ * it, and a sound change that takes a beat or two to finish, the outgoing
+ * `neo` swelling under the first ticks of whatever replaced it.
+ *
+ * 180ms of decay to nothing and 80ms of release make it a tick: -40dBFS
+ * in 48ms, -90 in 113. The attack, the pitch sweep, the notes and the
+ * accents are untouched, and so is the peak (0.05dB) — what goes is the
+ * ring, and with it the low-frequency energy the ring was made of. Over a
+ * bar, downstream of the low cut, the share of `neo`'s output sitting
+ * below 150Hz falls from 19% to 3%; `clic` sits at 0.8%. The one real
+ * change is that `neo` no longer sustains; if it is ever wanted rounder,
+ * `decay` is the number, and `createMetronomeVoice` has what it costs.
+ *
+ * `silence` (above) covers the sound change on its own, whatever a voice's
+ * envelopes do. Both are here because they answer different halves of it:
+ * the fade stops a voice that is being replaced, and the envelope stops
+ * `neo` ringing over *itself* beat after beat while it is the one playing.
  *
  * **The low cut.** `neo`'s fundamental is a 65Hz sine (110Hz on the
  * downbeat) and it was reading as a bass note rather than as a click —
@@ -148,14 +223,22 @@ export type MetronomeVoice = {
  * nothing anywhere now.
  */
 const createNeoVoice = (): MetronomeVoice => {
+  const output = new Tone.Gain().toDestination()
+
   const lowCut = new Tone.Filter({
     type: 'highpass',
     frequency: lowCutHz,
     rolloff: -12,
     Q: 0.7,
-  }).toDestination()
+  }).connect(output)
 
-  const synth = new Tone.MembraneSynth({ volume: neoVolume }).connect(lowCut)
+  const synth = new Tone.MembraneSynth({
+    // Everything but the envelope is `MembraneSynth`'s default, the pitch
+    // sweep included — see the note above for what the envelope changes
+    // and what it deliberately doesn't.
+    envelope: { attack: 0.001, decay: 0.18, sustain: 0, release: 0.08 },
+    volume: neoVolume,
+  }).connect(lowCut)
 
   const notes: AccentValues<AccentNote> = {
     downbeat: { note: 'A2', velocity: 0.8 },
@@ -163,26 +246,21 @@ const createNeoVoice = (): MetronomeVoice => {
     subdivision: { note: 'C2', velocity: 0.2 },
   }
 
-  return {
+  return createVoice({
+    output,
     trigger: (time, accent) => {
       const { note, velocity } = notes[accent]
+      // `'64n'` is when the release starts, and it moves with the tempo:
+      // 9ms at 400 BPM, 31 at 120, 188 at the app's 20 BPM floor. The
+      // envelope is short enough that this is a detail — the release rules
+      // the tail either way.
       synth.triggerAttackRelease(note, '64n', time, velocity)
     },
-    // The one voice that keeps Tone's default envelope, whose 1.4s release
-    // really does run its full length: `triggerRelease` ramps with a time
-    // constant of `ln(release + 1) / ln(200)` and only reaches zero at the
-    // end. The 100ms on top is for the note it is released from — which is
-    // `'64n'`, so it moves with the tempo: 9ms at 400 BPM, 31 at 120, and
-    // 188 at the app's 20 BPM floor, where the real need is 1588ms and
-    // this budget is 88ms short. Left at 1500 anyway, because what gets
-    // cut there is -102dBFS — under the 16-bit floor, and two orders of
-    // magnitude below the -42dBFS this field exists to stop.
-    tailMs: 1500,
     dispose: () => {
       synth.dispose()
       lowCut.dispose()
     },
-  }
+  })
 }
 
 /**
@@ -199,11 +277,13 @@ const createNeoVoice = (): MetronomeVoice => {
  * downbeat is what stops `clicVolume` going any higher.
  */
 const createClicVoice = (): MetronomeVoice => {
+  const output = new Tone.Gain().toDestination()
+
   const filter = new Tone.Filter({
     type: 'bandpass',
     frequency: 2500,
     Q: 3,
-  }).toDestination()
+  }).connect(output)
 
   const chiff = new Tone.NoiseSynth({
     noise: { type: 'white' },
@@ -220,7 +300,7 @@ const createClicVoice = (): MetronomeVoice => {
     oscillator: { type: 'sine' },
     envelope: { attack: 0.0004, decay: 0.055, sustain: 0, release: 0.03 },
     volume: clicVolume,
-  }).toDestination()
+  }).connect(output)
 
   const hits: AccentValues<AccentHit> = {
     downbeat: { band: 3000, note: 960, velocity: 0.9 },
@@ -228,21 +308,20 @@ const createClicVoice = (): MetronomeVoice => {
     subdivision: { band: 2000, note: 660, velocity: 0.32 },
   }
 
-  return {
+  return createVoice({
+    output,
     trigger: (time, accent) => {
       const { band, note, velocity } = hits[accent]
       filter.frequency.setValueAtTime(band, time)
       chiff.triggerAttackRelease(0.004, time, velocity)
       body.triggerAttackRelease(note, 0.03, time, velocity)
     },
-    // 30ms of hold and 30ms of release on the body, the chiff long gone.
-    tailMs: 100,
     dispose: () => {
       chiff.dispose()
       body.dispose()
       filter.dispose()
     },
-  }
+  })
 }
 
 /**
@@ -266,6 +345,8 @@ const createClicVoice = (): MetronomeVoice => {
  * *ring*, so the fundamental is given 130ms rather than the 50 it had.
  */
 const createClaveVoice = (): MetronomeVoice => {
+  const output = new Tone.Gain().toDestination()
+
   const body = new Tone.MembraneSynth({
     // `octaves` is a plain multiplier on where the sweep *starts*, not a
     // number of octaves: `setNote` sets the oscillator to `note * octaves`
@@ -277,19 +358,19 @@ const createClaveVoice = (): MetronomeVoice => {
     oscillator: { type: 'sine' },
     envelope: { attack: 0.0004, decay: 0.13, sustain: 0, release: 0.05 },
     volume: claveVolume,
-  }).toDestination()
+  }).connect(output)
 
   const overtone = new Tone.Synth({
     oscillator: { type: 'sine' },
     envelope: { attack: 0.0004, decay: 0.028, sustain: 0, release: 0.02 },
     volume: claveVolume - 13,
-  }).toDestination()
+  }).connect(output)
 
   const contactFilter = new Tone.Filter({
     type: 'bandpass',
     frequency: 4200,
     Q: 1.2,
-  }).toDestination()
+  }).connect(output)
 
   const contact = new Tone.NoiseSynth({
     noise: { type: 'white' },
@@ -303,7 +384,8 @@ const createClaveVoice = (): MetronomeVoice => {
     subdivision: { note: 1750, velocity: 0.3 },
   }
 
-  return {
+  return createVoice({
+    output,
     trigger: (time, accent) => {
       const { note, velocity } = notes[accent]
       body.triggerAttackRelease(note, 0.08, time, velocity)
@@ -315,15 +397,13 @@ const createClaveVoice = (): MetronomeVoice => {
       )
       contact.triggerAttackRelease(0.003, time, velocity)
     },
-    // 80ms of hold and 50ms of release on the body, the longest of the three.
-    tailMs: 200,
     dispose: () => {
       body.dispose()
       overtone.dispose()
       contact.dispose()
       contactFilter.dispose()
     },
-  }
+  })
 }
 
 /**
@@ -355,13 +435,34 @@ const createClaveVoice = (): MetronomeVoice => {
  * went in and re-checked after: it costs `neo` 0.6dB of A-weighted level,
  * inside the tolerance they were set to.
  *
- * The blind spot is worth keeping, because a fourth sound would walk into
- * it too: A-weighted energy integrates, and ignores the shape the energy
- * arrives in. `clave` is a clean 1.75kHz ring lasting 130ms — pitched, and
- * sitting where hearing is sharpest — against `clic`'s broadband 50ms
- * knock. Tonal and sustained reads far louder than noisy and brief at
- * equal energy. Use the numbers to find the headroom; use the ear to set
- * the level.
+ * A-weighting's *other* blind spot is the bass itself, and that one came
+ * back: on a desktop system with real low-end extension, `neo` was
+ * reported louder than the other two — the same balance, heard through
+ * something that actually reproduces the part a laptop drops. The curve is
+ * calibrated at ~40 phon and takes 26dB off 65Hz, so a level it calls even
+ * is one the ear calls even only at the volume, and on the speakers, it
+ * was calibrated for.
+ *
+ * So the balance is now read three ways over a bar of four ticks at 120
+ * BPM, rendered offline — A-weighted (the quiet end, bass discounted
+ * hardest), B-weighted (~70 phon, the closest of the three to how anyone
+ * actually listens to a metronome) and BS.1770 K-weighted (near-flat to
+ * 40Hz, the full-range end) — and it is the *spread* between them that
+ * says whether a sound will travel. Against `clic`, `neo` was -1.5 / +2.2
+ * / +2.8dB: even to quiet on the metric that ignores its low end, 2 to 3dB
+ * loud on the two that don't. Shortening its envelope (see
+ * `createNeoVoice`) took the low-frequency energy out rather than the
+ * level: -2.8 / +0.1 / +0.3dB, at the same trim. No number in this file
+ * moved for it. `clave`, by ear and left alone, sits at -8.8 / -10.4 /
+ * -8.1 — consistently under, which is what the paragraph below is about.
+ *
+ * The first blind spot — the one the ear caught, two paragraphs up — is
+ * worth keeping too, because a fourth sound would walk into it: weighted
+ * energy integrates, and ignores the shape the energy arrives in. `clave` is a clean 1.75kHz ring lasting 130ms —
+ * pitched, and sitting where hearing is sharpest — against `clic`'s
+ * broadband 50ms knock. Tonal and sustained reads far louder than noisy
+ * and brief at equal energy. Use the numbers to find the headroom and the
+ * spread; use the ear to set the level.
  *
  * The headroom is what the numbers are still good for. `clic`'s downbeat
  * is the peak-critical tick of the three: over 60 offline renders it lands
