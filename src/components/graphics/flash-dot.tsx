@@ -5,7 +5,14 @@ import { Metronome, MetronomeEvents } from '../../util/metronome'
 import { useTickFlash } from '../../hooks/use-tick-flash'
 import { flashValuesAt } from '../../util/flash'
 
-const FLASH_DURATION_MS = 500
+/**
+ * A flash lasts one beat — which at 120bpm is the 500ms it always was,
+ * and which now stretches and tightens with the tempo. It is a whole beat
+ * rather than a fraction of one because a given dot only flashes once per
+ * *bar*, so this is a quarter of that dot's cycle in 4/4 whatever the
+ * tempo, not a light left on.
+ */
+const FLASH_BEATS = 1
 
 export type FlashDotProps<E extends keyof MetronomeEvents> = {
   point: GeoPoint
@@ -74,7 +81,7 @@ export function FlashDot<E extends keyof MetronomeEvents>({
     [fromOpacity, fromRadius, toRadius]
   )
 
-  useTickFlash(metronome, event, matches, FLASH_DURATION_MS, onFrame)
+  useTickFlash(metronome, event, matches, FLASH_BEATS, onFrame)
 
   return (
     <pixiGraphics ref={graphicsRef} x={x} y={y} draw={draw} visible={false} />
