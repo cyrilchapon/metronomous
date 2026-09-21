@@ -87,7 +87,6 @@
      `readDrawPalette`, which is why they're plain custom properties rather
      than `@theme` entries — nothing renders them as utilities. */
   --metronome-accent: #ff3300;
-  --metronome-back: var(--background);
   --metronome-main: var(--foreground);
   --metronome-cursor: var(--metronome-accent);
 }

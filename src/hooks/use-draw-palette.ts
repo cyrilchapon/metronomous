@@ -2,7 +2,7 @@ import { useLayoutEffect, useState } from 'react'
 import { DrawPalette, readDrawPalette } from '../style/draw-palette'
 
 const isSameDrawPalette = (a: DrawPalette, b: DrawPalette) =>
-  a.back === b.back && a.main === b.main && a.cursor === b.cursor
+  a.main === b.main && a.cursor === b.cursor
 
 /**
  * The draw palette lives in CSS, so it changes when `<html>` does — which is

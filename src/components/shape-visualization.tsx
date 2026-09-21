@@ -61,11 +61,7 @@ const ShapeVisualizationCanvas: FunctionComponent<
   const { shapeMode } = useAtomValue(displaySettingsAtom)
 
   const { cursorMoveMode, cursorMass } = useAtomValue(displaySettingsAtom)
-  const {
-    back: backColor,
-    main: mainColor,
-    cursor: cursorColor,
-  } = useDrawPalette()
+  const { main: mainColor, cursor: cursorColor } = useDrawPalette()
 
   const largestPossibleSquare = useMemo(
     () => getLargestPossibleSquare(width - 2, height - 2, padding),
@@ -129,7 +125,17 @@ const ShapeVisualizationCanvas: FunctionComponent<
       // Native Application props
       width={width}
       height={height}
-      backgroundColor={backColor}
+      // Black, and it matters that it is: the canvas is transparent, so
+      // this is only ever the *clear* color — but PixiJS clears to it
+      // premultiplied by `backgroundAlpha`, and a premultiplied pixel
+      // still carries its RGB at alpha 0. Clearing to the page's own
+      // background (what this used to do) therefore added that color to
+      // every partially-transparent pixel drawn over it, and the browser
+      // then composited the page background under it a second time. In
+      // light mode that washed every translucent fill out to white: the
+      // shape's own 10% fill was invisible, and so was the cursor line's
+      // trail. Black is the only clear color that adds nothing.
+      backgroundColor={0x000000}
       backgroundAlpha={0}
       antialias
       autoDensity
