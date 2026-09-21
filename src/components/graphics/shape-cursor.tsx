@@ -35,8 +35,9 @@ const DOT_TRAIL_SEGMENTS = TRAIL_SAMPLES / DOT_TRAIL_STRIDE
 
 const TRAIL_MAX_ALPHA = 0.85
 // The line's trail sweeps a whole sector rather than tracing a thin path,
-// so the same alpha over that much area would read several times heavier.
-const LINE_TRAIL_MAX_ALPHA = 0.35
+// so the same alpha over that much area would read several times heavier
+// — about a fifth of the dot's, by eye, is where the two weigh the same.
+const LINE_TRAIL_MAX_ALPHA = 0.15
 
 // The cursor line is drawn once, along +x, at this length, and then merely
 // rotated and stretched (see `renderAt`). Any reference length works; a

@@ -21,7 +21,7 @@ const ATTACK = 0.05
  * does on its own, and a flash that never quite ends is a flash that never
  * stops costing a draw.
  */
-const DECAY = 4.5
+const DECAY = 6
 const DECAY_FLOOR = Math.exp(-DECAY)
 const DECAY_SCALE = 1 / (1 - DECAY_FLOOR)
 
