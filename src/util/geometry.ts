@@ -62,16 +62,13 @@ export const boundPolygon = (baseCircle: GeoCircle, sides: number, paddedRatio: 
 
   const startAngle = -90 * (Math.PI / 180)
 
-  const polygon = new Array(sides)
-    .fill(null)
-    .reduce<GeoPolygon>((acc, _v, side) => {
-      const angleRad = side * step + startAngle
-      const nextPoint: GeoPoint = [
-        xCenter + polygonRadius * Math.cos(angleRad),
-        yCenter + shift + polygonRadius * Math.sin(angleRad),
-      ]
-      return [...acc, nextPoint]
-    }, [])
+  const polygon: GeoPolygon = emptyArray(sides).map((_v, side) => {
+    const angleRad = side * step + startAngle
+    return [
+      xCenter + polygonRadius * Math.cos(angleRad),
+      yCenter + shift + polygonRadius * Math.sin(angleRad),
+    ]
+  })
 
   return polygon
 }

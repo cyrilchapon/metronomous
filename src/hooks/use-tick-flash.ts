@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useTick } from '@pixi/react'
+import { Ticker } from 'pixi.js'
 import { Metronome, MetronomeEvents } from '../util/metronome'
 
 /**
@@ -7,12 +8,13 @@ import { Metronome, MetronomeEvents } from '../util/metronome'
  * React's render cycle.
  *
  * The animation is armed by a discrete metronome event (a beat/subdivision
- * tick, already synchronized to the audio clock via `Tone.Draw`) and then
- * advanced every PixiJS tick by calling `onFrame(t)` with `t` going from `0`
- * to `1` over `durationMs`. `onFrame` is expected to imperatively redraw a
- * `pixi.Graphics` ref — no state is set, so an idle flash (the overwhelming
- * majority of frames, for the overwhelming majority of instances) costs a
- * single boolean check per frame instead of a React re-render.
+ * tick, emitted from the same per-frame read of the audio clock that moves
+ * the cursor) and then advanced every PixiJS tick by calling `onFrame(t)`
+ * with `t` going from `0` to `1` over `durationMs`. `onFrame` is expected
+ * to imperatively drive a `pixi.Graphics` ref — no state is set, so an
+ * idle flash (the overwhelming majority of frames, for the overwhelming
+ * majority of instances) costs a single boolean check per frame instead of
+ * a React re-render.
  */
 export const useTickFlash = <E extends keyof MetronomeEvents>(
   metronome: Metronome,
@@ -37,22 +39,33 @@ export const useTickFlash = <E extends keyof MetronomeEvents>(
     return unsubscribe
   }, [metronome, event, matches])
 
-  const tick = useCallback(() => {
-    if (!activeRef.current) {
-      return
-    }
+  const tick = useCallback(
+    (ticker: Ticker) => {
+      if (!activeRef.current) {
+        return
+      }
 
-    const elapsedMs = performance.now() - startedAtRef.current
-    const t = elapsedMs / durationMs
+      // The ticker's own timestamp rather than another `performance.now()`
+      // read: every flash alive this frame then advances on exactly the
+      // same instant (dozens of them can be, with a 7/6 bar), instead of
+      // each sampling the clock a few microseconds apart. It is behind the
+      // arming timestamp above — the metronome is polled from within the
+      // frame, after the ticker stamped it — so the very first frame of a
+      // flash can come out slightly negative; clamp rather than let the
+      // curve run backwards.
+      const elapsedMs = Math.max(0, ticker.lastTime - startedAtRef.current)
+      const t = elapsedMs / durationMs
 
-    if (t >= 1) {
-      activeRef.current = false
-      onFrame(1)
-      return
-    }
+      if (t >= 1) {
+        activeRef.current = false
+        onFrame(1)
+        return
+      }
 
-    onFrame(t)
-  }, [durationMs, onFrame])
+      onFrame(t)
+    },
+    [durationMs, onFrame]
+  )
 
   useTick(tick)
 }
