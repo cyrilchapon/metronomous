@@ -458,11 +458,12 @@ const createClaveVoice = (): MetronomeVoice => {
  *
  * The first blind spot — the one the ear caught, two paragraphs up — is
  * worth keeping too, because a fourth sound would walk into it: weighted
- * energy integrates, and ignores the shape the energy arrives in. `clave` is a clean 1.75kHz ring lasting 130ms —
- * pitched, and sitting where hearing is sharpest — against `clic`'s
- * broadband 50ms knock. Tonal and sustained reads far louder than noisy
- * and brief at equal energy. Use the numbers to find the headroom and the
- * spread; use the ear to set the level.
+ * energy integrates, and ignores the shape the energy arrives in. `clave`
+ * is a clean 1.75kHz ring lasting 130ms — pitched, and sitting where
+ * hearing is sharpest — against `clic`'s broadband 50ms knock. Tonal and
+ * sustained reads far louder than noisy and brief at equal energy. Use
+ * the numbers to find the headroom and the spread; use the ear to set the
+ * level.
  *
  * The headroom is what the numbers are still good for. `clic`'s downbeat
  * is the peak-critical tick of the three: over 60 offline renders it lands
