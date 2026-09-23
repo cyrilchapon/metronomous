@@ -5,6 +5,7 @@ import {
   MetronomeAccent,
   MetronomeSound,
   MetronomeVoice,
+  voiceFadeSeconds,
 } from './metronome-sound'
 import { UnreachableCaseError } from './unreachable-case-error'
 import { TransportClass } from 'tone/build/esm/core/clock/Transport'
@@ -45,6 +46,15 @@ export type MetronomeProgress = {
   subdivisionIndex: number
   subdivisionIndexInDivision: number
 }
+
+/**
+ * A margin on the `setTimeout` that disposes a faded-out voice, in
+ * milliseconds — `setTimeout` runs on the main thread and the fade on the
+ * audio clock, and only one of the two is reliable. It buys nothing but
+ * the certainty that the ramp has finished; a few idle nodes for 50ms is
+ * the whole cost of being wrong in this direction.
+ */
+const retireTimerSlackMs = 50
 
 export type MetronomeEvents = {
   tick: (divisionIndex: number, progress: MetronomeProgress) => void
@@ -329,24 +339,31 @@ export class Metronome {
   }
 
   /**
-   * The sequence hands a voice its ticks up to `context.lookAhead` (100ms)
-   * before they are audible, and the tick itself rings on for as long as
-   * its envelopes say. Disposing the outgoing voice on the spot would cut
-   * one of those off mid-sample — a click, on the one gesture whose entire
-   * point is what it sounds like. Letting it go quiet on its own costs a
-   * couple of idle oscillators for a moment.
+   * Takes the outgoing voice down and disposes it once it is silent.
    *
-   * How long that moment is, is the voice's own answer (`tailMs`) rather
-   * than a constant here: the release times live next to the envelopes
-   * that own them, and a number written here is a guess about another
-   * file. It was, too — a flat 250ms covered `clic` and `clave` twice over
-   * (both are at digital zero inside 200ms) and cut `neo`, which keeps
-   * Tone's default 1.4s release, mid-release: -42dBFS as it leaves the low
-   * cut, some 14dB louder than that before it. `neo` needs 1.4s to reach
-   * zero and now says so.
+   * Disposing it on the spot would cut a ringing tick off mid-sample — a
+   * click, on the one gesture whose entire point is what it sounds like.
+   * Waiting out whatever its envelopes owe instead is the other extreme,
+   * and it is what the sound change actually sounded like: `neo`'s tick
+   * was audible for the better part of a second, so swapping away from it
+   * mid-bar laid that under the first beat or two of the new sound. A fade
+   * is neither — the old voice is gone a `voiceFadeSeconds` after the
+   * switch, and gone smoothly.
+   *
+   * It starts at `Tone.now()` — `currentTime + lookAhead`, the far edge of
+   * the window the sequence has already scheduled into. Every tick this
+   * voice was handed before the swap still gets its attack (the fade takes
+   * what they ring on into, not their onset), and nothing is dropped:
+   * those ticks were committed to this voice before the new one existed.
    */
   private _retireVoice(voice: MetronomeVoice) {
-    const graceMs = Tone.getContext().lookAhead * 1000 + voice.tailMs
+    const context = Tone.getContext()
+    voice.silence(context.now())
+
+    // `now()` is `lookAhead` ahead of the audio clock, and the fade runs
+    // from there — plus a little for `setTimeout`, which is not one.
+    const graceMs =
+      (context.lookAhead + voiceFadeSeconds) * 1000 + retireTimerSlackMs
     window.setTimeout(() => voice.dispose(), graceMs)
   }
 
